@@ -5,161 +5,159 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { couchesCollection } from '../../firebase';
 import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 
-const Calendar = () => {
-    const [selectedRanges, setSelectedRanges] = useState([]);
-    const [currentSelection, setCurrentSelection] = useState({ start: null, end: null });
-    const [isSelecting, setIsSelecting] = useState(false);
-  
-    // 生成日曆數據
-    const generateCalendarDays = (year, month) => {
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-      const days = [];
-      
-      // 填充月初空白天數
-      for (let i = 0; i < firstDay.getDay(); i++) {
-        days.push(null);
-      }
-      
-      // 填充實際天數
-      for (let i = 1; i <= lastDay.getDate(); i++) {
-        days.push(new Date(year, month, i));
-      }
-      
-      return days;
-    };
-  
-    const isDateInRange = (date) => {
-      if (!date) return false;
-      
-      // 檢查是否在已選擇的區間內
-      const isInSelectedRanges = selectedRanges.some(range => {
-        return date >= range.start && date <= range.end;
-      });
-  
-      // 檢查是否在當前選擇的區間內
-      const isInCurrentSelection = currentSelection.start && currentSelection.end &&
-        date >= currentSelection.start && date <= currentSelection.end;
-  
-      return isInSelectedRanges || isInCurrentSelection;
-    };
-  
-    const handleDateClick = (date, e) => {
-      e.preventDefault(); // 阻止事件冒泡
-      if (!date) return;
-  
-      if (!isSelecting) {
-        // 開始新的選擇
-        setCurrentSelection({ start: date, end: date });
-        setIsSelecting(true);
+const Calendar = ({ selectedRanges, setSelectedRanges }) => {
+  const [currentSelection, setCurrentSelection] = useState({ start: null, end: null });
+  const [isSelecting, setIsSelecting] = useState(false);
+
+  // 生成日曆數據
+  const generateCalendarDays = (year, month) => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+    
+    // 填充月初空白天數
+    for (let i = 0; i < firstDay.getDay(); i++) {
+      days.push(null);
+    }
+    
+    // 填充實際天數
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push(new Date(year, month, i));
+    }
+    
+    return days;
+  };
+
+  const isDateInRange = (date) => {
+    if (!date) return false;
+    
+    // 檢查是否在已選擇的區間內
+    const isInSelectedRanges = selectedRanges.some(range => {
+      return date >= range.start && date <= range.end;
+    });
+
+    // 檢查是否在當前選擇的區間內
+    const isInCurrentSelection = currentSelection.start && currentSelection.end &&
+      date >= currentSelection.start && date <= currentSelection.end;
+
+    return isInSelectedRanges || isInCurrentSelection;
+  };
+
+  const handleDateClick = (date, e) => {
+    e.preventDefault(); // 阻止事件冒泡
+    if (!date) return;
+
+    if (!isSelecting) {
+      // 開始新的選擇
+      setCurrentSelection({ start: date, end: date });
+      setIsSelecting(true);
+    } else {
+      // 完成選擇
+      if (date >= currentSelection.start) {
+        setSelectedRanges(prev => [...prev, { start: currentSelection.start, end: date }]);
       } else {
-        // 完成選擇
-        if (date >= currentSelection.start) {
-          setSelectedRanges(prev => [...prev, { start: currentSelection.start, end: date }]);
-        } else {
-          setSelectedRanges(prev => [...prev, { start: date, end: currentSelection.start }]);
-        }
-        setCurrentSelection({ start: null, end: null });
-        setIsSelecting(false);
+        setSelectedRanges(prev => [...prev, { start: date, end: currentSelection.start }]);
       }
-    };
-  
-    const removeRange = (index) => {
-      setSelectedRanges(prev => prev.filter((_, i) => i !== index));
-    };
-  
-    // 獲取當前月份數據
-    const now = new Date();
-    const currentMonth = generateCalendarDays(now.getFullYear(), now.getMonth());
-    const nextMonth = generateCalendarDays(now.getFullYear(), now.getMonth() + 1);
-  
-    const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-  
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* 當前月份 */}
-          <div className="bg-white rounded-lg p-4">
-            <h3 className="text-lg font-medium mb-4">
-              {now.getFullYear()}年{now.getMonth() + 1}月
-            </h3>
-            <div className="grid grid-cols-7 gap-2">
-              {weekDays.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-gray-500">
-                  {day}
-                </div>
-              ))}
-              {currentMonth.map((date, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => handleDateClick(date, e)}
-                  className={`
-                    aspect-square p-2 rounded-lg text-sm
-                    ${!date ? 'invisible' : ''}
-                    ${isDateInRange(date) ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
-                  `}
-                  disabled={!date || date < now}
-                >
-                  {date?.getDate()}
-                </button>
-              ))}
-            </div>
-          </div>
-  
-          {/* 下個月 */}
-          <div className="bg-white rounded-lg p-4">
-            <h3 className="text-lg font-medium mb-4">
-              {now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()}年
-              {now.getMonth() === 11 ? 1 : now.getMonth() + 2}月
-            </h3>
-            <div className="grid grid-cols-7 gap-2">
-              {weekDays.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-gray-500">
-                  {day}
-                </div>
-              ))}
-              {nextMonth.map((date, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => handleDateClick(date, e)}
-                  className={`
-                    aspect-square p-2 rounded-lg text-sm
-                    ${!date ? 'invisible' : ''}
-                    ${isDateInRange(date) ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
-                  `}
-                  disabled={!date}
-                >
-                  {date?.getDate()}
-                </button>
-              ))}
-            </div>
+      setCurrentSelection({ start: null, end: null });
+      setIsSelecting(false);
+    }
+  };
+
+  const removeRange = (index) => {
+    setSelectedRanges(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 獲取當前月份數據
+  const now = new Date();
+  const currentMonth = generateCalendarDays(now.getFullYear(), now.getMonth());
+  const nextMonth = generateCalendarDays(now.getFullYear(), now.getMonth() + 1);
+
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* 當前月份 */}
+        <div className="bg-white rounded-lg p-4">
+          <h3 className="text-lg font-medium mb-4">
+            {now.getFullYear()}年{now.getMonth() + 1}月
+          </h3>
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map(day => (
+              <div key={day} className="text-center text-sm font-medium text-gray-500">
+                {day}
+              </div>
+            ))}
+            {currentMonth.map((date, index) => (
+              <button
+                key={index}
+                onClick={(e) => handleDateClick(date, e)}
+                className={`
+                  aspect-square p-2 rounded-lg text-sm
+                  ${!date ? 'invisible' : ''}
+                  ${isDateInRange(date) ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
+                `}
+                disabled={!date || date < now}
+              >
+                {date?.getDate()}
+              </button>
+            ))}
           </div>
         </div>
-  
-        {/* 已選擇的時間區間 */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700">已選擇的時間區間：</h4>
-          {selectedRanges.map((range, index) => (
-            <div 
-              key={index}
-              className="flex items-center justify-between bg-blue-50 px-4 py-2 rounded-lg"
-            >
-              <span>
-                {range.start.toLocaleDateString()} - {range.end.toLocaleDateString()}
-              </span>
+
+        {/* 下個月 */}
+        <div className="bg-white rounded-lg p-4">
+          <h3 className="text-lg font-medium mb-4">
+            {now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()}年
+            {now.getMonth() === 11 ? 1 : now.getMonth() + 2}月
+          </h3>
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map(day => (
+              <div key={day} className="text-center text-sm font-medium text-gray-500">
+                {day}
+              </div>
+            ))}
+            {nextMonth.map((date, index) => (
               <button
-                onClick={() => removeRange(index)}
-                className="text-gray-500 hover:text-red-500"
+                key={index}
+                onClick={(e) => handleDateClick(date, e)}
+                className={`
+                  aspect-square p-2 rounded-lg text-sm
+                  ${!date ? 'invisible' : ''}
+                  ${isDateInRange(date) ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
+                `}
+                disabled={!date}
               >
-                <X className="w-4 h-4" />
+                {date?.getDate()}
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
-    );
-  };
-  
+
+      {/* 已選擇的時間區間 */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-gray-700">已選擇的時間區間：</h4>
+        {selectedRanges.map((range, index) => (
+          <div 
+            key={index}
+            className="flex items-center justify-between bg-blue-50 px-4 py-2 rounded-lg"
+          >
+            <span>
+              {range.start.toLocaleDateString()} - {range.end.toLocaleDateString()}
+            </span>
+            <button
+              onClick={() => removeRange(index)}
+              className="text-gray-500 hover:text-red-500"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const HostRegistration = () => {
   const { id } = useParams();
@@ -232,22 +230,42 @@ const HostRegistration = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('開始提交表單');
+    
     try {
       setLoading(true);
       setError('');
+      console.log('表單數據:', formData);
+      console.log('選擇的日期區間:', selectedRanges);
 
-      // 獲取城市的地理座標
-      const coordinates = await geocodeAddress(formData.location);
-      if (!coordinates) {
-        setError('無法找到該城市的座標，請確認城市名稱是否正確');
+      // 檢查用戶是否已登錄
+      if (!user) {
+        console.log('用戶未登錄');
+        setError('請先登錄後再發布貼文');
+        setLoading(false);
         return;
       }
+      console.log('用戶已登錄:', user.uid);
+
+      // 獲取城市的地理座標
+      console.log('開始獲取城市座標:', formData.location);
+      const coordinates = await geocodeAddress(formData.location);
+      if (!coordinates) {
+        console.log('無法獲取城市座標');
+        setError('無法找到該城市的座標，請確認城市名稱是否正確');
+        setLoading(false);
+        return;
+      }
+      console.log('獲取到城市座標:', coordinates);
 
       // 檢查是否有選擇日期區間
       if (selectedRanges.length === 0) {
+        console.log('未選擇日期區間');
         setError('請至少選擇一個日期區間');
+        setLoading(false);
         return;
       }
+      console.log('已選擇日期區間數量:', selectedRanges.length);
 
       // 將 Date 對象轉換為 Firestore 時間戳
       const couchData = {
@@ -264,20 +282,52 @@ const HostRegistration = () => {
         status: 'active'
       };
 
+      console.log('準備保存的數據:', couchData);
+
       if (isEditing) {
-        await updateDoc(doc(couchesCollection, id), {
-          ...couchData,
-          updatedAt: serverTimestamp()
-        });
+        console.log('正在更新現有貼文:', id);
+        try {
+          await updateDoc(doc(couchesCollection, id), {
+            ...couchData,
+            updatedAt: serverTimestamp()
+          });
+          console.log('更新成功');
+        } catch (updateError) {
+          console.error('更新失敗:', updateError);
+          throw updateError;
+        }
       } else {
-        const docRef = doc(couchesCollection);
-        await setDoc(docRef, couchData);
+        console.log('正在創建新貼文');
+        try {
+          const docRef = doc(couchesCollection);
+          await setDoc(docRef, couchData);
+          console.log('創建成功');
+        } catch (createError) {
+          console.error('創建失敗:', createError);
+          throw createError;
+        }
       }
+
+      console.log('導航到個人檔案頁面');
       navigate('/profile');
     } catch (error) {
       console.error('保存沙發資料失敗:', error);
-      setError('保存失敗，請稍後再試');
+      console.error('錯誤詳情:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // 根據錯誤類型顯示不同的錯誤信息
+      if (error.code === 'permission-denied') {
+        setError('權限不足，請確認您是否已登錄');
+      } else if (error.code === 'unauthenticated') {
+        setError('請先登錄後再發布貼文');
+      } else {
+        setError(`保存失敗: ${error.message}`);
+      }
     } finally {
+      console.log('設置 loading 狀態為 false');
       setLoading(false);
     }
   };
@@ -458,7 +508,10 @@ const HostRegistration = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               可提供住宿的日期
             </label>
-            <Calendar selectedRanges={selectedRanges} setSelectedRanges={setSelectedRanges} />
+            <Calendar 
+              selectedRanges={selectedRanges} 
+              setSelectedRanges={setSelectedRanges} 
+            />
           </div>
 
           {/* 提交按鈕 */}
