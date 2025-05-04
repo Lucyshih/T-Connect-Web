@@ -1,0 +1,389 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext.jsx';
+import { localsCollection } from '../../firebase';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
+
+const LocalRegistration = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isEditing, setIsEditing] = useState(!!id);
+  const [formData, setFormData] = useState({
+    title: '',
+    city: '',
+    languages: [],
+    services: [],
+    price: '',
+    description: '',
+    availability: {
+      startDate: '',
+      endDate: ''
+    },
+    coordinates: { lat: 0, lng: 0 }
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isEditing && id) {
+      const fetchLocalData = async () => {
+        try {
+          const localDoc = await getDoc(doc(localsCollection, id));
+          if (localDoc.exists()) {
+            setFormData(localDoc.data());
+          }
+        } catch (error) {
+          console.error('獲取地陪資料失敗:', error);
+        }
+      };
+      fetchLocalData();
+    }
+  }, [id, isEditing]);
+
+  // 添加語言選項
+  const addLanguage = () => {
+    setFormData(prev => ({
+      ...prev,
+      languages: [...prev.languages, '']
+    }));
+  };
+
+  // 更新語言
+  const updateLanguage = (index, value) => {
+    const newLanguages = [...formData.languages];
+    newLanguages[index] = value;
+    setFormData(prev => ({
+      ...prev,
+      languages: newLanguages
+    }));
+  };
+
+  // 刪除語言
+  const removeLanguage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      languages: prev.languages.filter((_, i) => i !== index)
+    }));
+  };
+
+  // 添加服務項目
+  const addService = () => {
+    setFormData(prev => ({
+      ...prev,
+      services: [...prev.services, '']
+    }));
+  };
+
+  // 更新服務
+  const updateService = (index, value) => {
+    const newServices = [...formData.services];
+    newServices[index] = value;
+    setFormData(prev => ({
+      ...prev,
+      services: newServices
+    }));
+  };
+
+  // 刪除服務
+  const removeService = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      services: prev.services.filter((_, i) => i !== index)
+    }));
+  };
+
+  // 地理編碼函數
+  const geocodeAddress = async (address) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('地理編碼錯誤:', error);
+      return null;
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
+
+      // 獲取城市的地理座標
+      const coordinates = await geocodeAddress(formData.city);
+      if (!coordinates) {
+        setError('無法找到該城市的座標，請確認城市名稱是否正確');
+        return;
+      }
+
+      const localData = {
+        ...formData,
+        coordinates,
+        userId: user.uid,
+        userName: user.displayName,
+        userEmail: user.email,
+        createdAt: serverTimestamp(),
+        status: 'active'
+      };
+
+      if (isEditing) {
+        await updateDoc(doc(localsCollection, id), {
+          ...localData,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(doc(localsCollection), localData);
+      }
+      navigate('/profile');
+    } catch (error) {
+      console.error('保存地陪資料失敗:', error);
+      setError('保存失敗，請稍後再試');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm p-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div 
+            className="flex items-center space-x-2 cursor-pointer" 
+            onClick={() => navigate('/')}
+          >
+            <Compass className="w-8 h-8 text-blue-600" />
+            <span className="text-xl font-bold">TravelConnect</span>
+          </div>
+        </div>
+      </nav>
+      <div className="max-w-4xl mx-auto mt-8 p-4">
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <h1 className="text-2xl font-bold mb-6">成為在地嚮導</h1>
+
+            {/* 城市 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                服務城市
+              </label>
+              <div className="relative">
+                <MapPin className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                <input
+                  type="text"
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                  placeholder="例如：巴黎"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({...prev, city: e.target.value}))}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* 語言 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                可提供服務的語言
+              </label>
+              <div className="space-y-3">
+                {formData.languages.map((language, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Globe className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                      <input
+                        type="text"
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                        placeholder={`語言 ${index + 1}`}
+                        value={language}
+                        onChange={(e) => updateLanguage(index, e.target.value)}
+                        required
+                      />
+                    </div>
+                    {formData.languages.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          removeLanguage(index);
+                        }}
+                        className="p-2 text-gray-500 hover:text-red-500"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    addLanguage();
+                  }}
+                  className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>添加語言</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 服務項目 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                提供的服務項目
+              </label>
+              <div className="space-y-3">
+                {formData.services.map((service, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Star className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                      <input
+                        type="text"
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                        placeholder={`服務項目 ${index + 1}`}
+                        value={service}
+                        onChange={(e) => updateService(index, e.target.value)}
+                        required
+                      />
+                    </div>
+                    {formData.services.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          removeService(index);
+                        }}
+                        className="p-2 text-gray-500 hover:text-red-500"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    addService();
+                  }}
+                  className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>添加服務項目</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 價格 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                服務價格（€/小時）
+              </label>
+              <input
+                type="number"
+                min="0"
+                className="w-full px-4 py-2 border rounded-lg"
+                value={formData.price}
+                onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
+                required
+              />
+            </div>
+
+            {/* 可服務時間 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  開始日期
+                </label>
+                <div className="relative">
+                  <Calendar className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                  <input
+                    type="date"
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                    value={formData.availability.startDate}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      availability: {
+                        ...prev.availability,
+                        startDate: e.target.value
+                      }
+                    }))}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  結束日期
+                </label>
+                <div className="relative">
+                  <Calendar className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                  <input
+                    type="date"
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                    value={formData.availability.endDate}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      availability: {
+                        ...prev.availability,
+                        endDate: e.target.value
+                      }
+                    }))}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 描述 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                自我介紹與服務描述
+              </label>
+              <textarea
+                className="w-full px-4 py-2 border rounded-lg h-32"
+                placeholder="請描述您的背景、專長和提供的服務..."
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="text-red-500 text-sm">{error}</div>
+            )}
+
+            {/* 按鈕 */}
+            <div className="flex justify-end space-x-4">
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/');
+                }}
+                className="px-6 py-2 border rounded-lg"
+              >
+                取消
+              </button>
+              <button 
+                type="submit" 
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg"
+                disabled={loading}
+              >
+                {loading ? '提交中...' : '提交'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LocalRegistration; 
