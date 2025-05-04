@@ -118,26 +118,33 @@ const CompanionSearch = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('開始提交表單');
+    
     try {
       setLoading(true);
       setError('');
 
       // 檢查用戶是否已登錄
       if (!user) {
+        console.log('用戶未登錄');
         setError('請先登錄後再發布貼文');
         setLoading(false);
         return;
       }
+      console.log('用戶已登錄:', user.uid);
 
       // 檢查是否至少選擇一個目的地
-      if (destinations.length === 0) {
+      if (formData.destinations.length === 0 || formData.destinations[0] === '') {
+        console.log('未選擇目的地');
         setError('請至少選擇一個目的地');
         setLoading(false);
         return;
       }
+      console.log('已選擇目的地:', formData.destinations);
 
       // 檢查日期是否有效
       if (!formData.startDate || !formData.endDate) {
+        console.log('未選擇日期');
         setError('請選擇旅行日期');
         setLoading(false);
         return;
@@ -146,21 +153,26 @@ const CompanionSearch = () => {
       const startDate = new Date(formData.startDate);
       const endDate = new Date(formData.endDate);
       if (startDate >= endDate) {
+        console.log('日期無效');
         setError('結束日期必須晚於開始日期');
         setLoading(false);
         return;
       }
+      console.log('日期有效:', formData.startDate, '至', formData.endDate);
 
       // 獲取每個目的地的地理座標
+      console.log('開始獲取目的地座標');
       const destinationsWithCoordinates = await Promise.all(
-        destinations.map(async (destination) => {
+        formData.destinations.map(async (destination) => {
           const coordinates = await geocodeAddress(destination);
+          console.log('目的地座標:', destination, coordinates);
           return {
             name: destination,
             coordinates: coordinates || { lat: 0, lng: 0 }
           };
         })
       );
+      console.log('所有目的地座標獲取完成');
 
       const companionData = {
         ...formData,
@@ -172,21 +184,52 @@ const CompanionSearch = () => {
         status: 'active'
       };
 
+      console.log('準備保存的數據:', companionData);
+
       if (isEditing) {
-        await updateDoc(doc(companionsCollection, id), {
-          ...companionData,
-          updatedAt: serverTimestamp()
-        });
+        console.log('正在更新現有貼文:', id);
+        try {
+          await updateDoc(doc(companionsCollection, id), {
+            ...companionData,
+            updatedAt: serverTimestamp()
+          });
+          console.log('更新成功');
+        } catch (updateError) {
+          console.error('更新失敗:', updateError);
+          throw updateError;
+        }
       } else {
-        const docRef = doc(companionsCollection);
-        await setDoc(docRef, companionData);
+        console.log('正在創建新貼文');
+        try {
+          const docRef = doc(companionsCollection);
+          await setDoc(docRef, companionData);
+          console.log('創建成功');
+        } catch (createError) {
+          console.error('創建失敗:', createError);
+          throw createError;
+        }
       }
 
+      console.log('導航到個人檔案頁面');
       navigate('/profile');
     } catch (error) {
       console.error('保存旅伴資料失敗:', error);
-      setError(`保存失敗: ${error.message}`);
+      console.error('錯誤詳情:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // 根據錯誤類型顯示不同的錯誤信息
+      if (error.code === 'permission-denied') {
+        setError('權限不足，請確認您是否已登錄');
+      } else if (error.code === 'unauthenticated') {
+        setError('請先登錄後再發布貼文');
+      } else {
+        setError(`保存失敗: ${error.message}`);
+      }
     } finally {
+      console.log('設置 loading 狀態為 false');
       setLoading(false);
     }
   };
