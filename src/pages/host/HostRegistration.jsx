@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Upload, Plus, X, Home, Compass } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { couchesCollection } from '../../firebase';
-import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 
 const Calendar = () => {
     const [selectedRanges, setSelectedRanges] = useState([]);
@@ -191,7 +191,16 @@ const HostRegistration = () => {
         try {
           const couchDoc = await getDoc(doc(couchesCollection, id));
           if (couchDoc.exists()) {
-            setFormData(couchDoc.data());
+            const data = couchDoc.data();
+            setFormData(data);
+            if (data.selectedRanges) {
+              // 將 Firestore 的時間戳轉換為 Date 對象
+              const convertedRanges = data.selectedRanges.map(range => ({
+                start: new Date(range.start.seconds * 1000),
+                end: new Date(range.end.seconds * 1000)
+              }));
+              setSelectedRanges(convertedRanges);
+            }
           }
         } catch (error) {
           console.error('獲取沙發資料失敗:', error);
@@ -234,9 +243,20 @@ const HostRegistration = () => {
         return;
       }
 
+      // 檢查是否有選擇日期區間
+      if (selectedRanges.length === 0) {
+        setError('請至少選擇一個日期區間');
+        return;
+      }
+
+      // 將 Date 對象轉換為 Firestore 時間戳
       const couchData = {
         ...formData,
         coordinates,
+        selectedRanges: selectedRanges.map(range => ({
+          start: Timestamp.fromDate(range.start),
+          end: Timestamp.fromDate(range.end)
+        })),
         userId: user.uid,
         userName: user.displayName,
         userEmail: user.email,
@@ -250,7 +270,8 @@ const HostRegistration = () => {
           updatedAt: serverTimestamp()
         });
       } else {
-        await setDoc(doc(couchesCollection), couchData);
+        const docRef = doc(couchesCollection);
+        await setDoc(docRef, couchData);
       }
       navigate('/profile');
     } catch (error) {

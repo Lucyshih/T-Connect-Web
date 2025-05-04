@@ -64,27 +64,36 @@ export default function ExchangePlatform() {
   // 過濾貼文
   const filterPosts = (posts) => {
     return posts.filter(post => {
-      // 如果沒有搜索條件，顯示所有貼文
-      if (!searchParams.city && !searchParams.startDate && !searchParams.endDate) {
-        return true;
-      }
-
-      // 檢查城市
+      // 檢查城市是否匹配
       const cityMatch = !searchParams.city || 
-        (post.location?.toLowerCase().includes(searchParams.city.toLowerCase()) ||
-         (post.destinations && post.destinations.some(dest => 
-           dest.toLowerCase().includes(searchParams.city.toLowerCase())
-         )) ||
-         post.city?.toLowerCase().includes(searchParams.city.toLowerCase()));
+        (post.type === 'companion' 
+          ? post.destinations?.some(dest => dest.toLowerCase().includes(searchParams.city.toLowerCase()))
+          : post.location.toLowerCase().includes(searchParams.city.toLowerCase()));
 
-      // 檢查日期
-      const startDate = searchParams.startDate ? new Date(searchParams.startDate) : null;
-      const endDate = searchParams.endDate ? new Date(searchParams.endDate) : null;
-      
-      const dateMatch = !startDate || !endDate || (
-        (post.startDate && new Date(post.startDate) >= startDate) &&
-        (post.endDate && new Date(post.endDate) <= endDate)
-      );
+      // 檢查日期是否匹配
+      let dateMatch = true;
+      if (searchParams.startDate && searchParams.endDate) {
+        const searchStart = new Date(searchParams.startDate);
+        const searchEnd = new Date(searchParams.endDate);
+
+        if (post.type === 'companion') {
+          // 旅伴貼文：檢查搜索日期是否在貼文日期範圍內
+          const postStart = new Date(post.startDate.seconds * 1000);
+          const postEnd = new Date(post.endDate.seconds * 1000);
+          dateMatch = searchStart <= postEnd && searchEnd >= postStart;
+        } else {
+          // 沙發和地陪貼文：檢查是否有任何日期區間與搜索日期重疊
+          dateMatch = post.selectedRanges?.some(range => {
+            const rangeStart = new Date(range.start.seconds * 1000);
+            const rangeEnd = new Date(range.end.seconds * 1000);
+            return (
+              (searchStart >= rangeStart && searchStart <= rangeEnd) || // 搜索開始日期在區間內
+              (searchEnd >= rangeStart && searchEnd <= rangeEnd) || // 搜索結束日期在區間內
+              (searchStart <= rangeStart && searchEnd >= rangeEnd) // 搜索區間完全包含貼文區間
+            );
+          }) || false;
+        }
+      }
 
       return cityMatch && dateMatch;
     });
