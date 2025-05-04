@@ -394,10 +394,22 @@ export default function Profile() {
                     <p className="text-sm text-gray-600">
                       目的地：{companion.destinations?.map(dest => dest.name).join('、')}
                     </p>
-                    <p className="text-sm">
-                      {new Date(companion.startDate.seconds * 1000).toLocaleDateString()} - 
-                      {new Date(companion.endDate.seconds * 1000).toLocaleDateString()}
-                    </p>
+                    {companion.startDate && companion.endDate ? (
+                      <p className="text-sm text-gray-600">
+                        {new Date(companion.startDate.seconds * 1000).toLocaleDateString('zh-TW', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })} - 
+                        {new Date(companion.endDate.seconds * 1000).toLocaleDateString('zh-TW', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit'
+                        })}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-600">未設定日期</p>
+                    )}
                     <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
                     <p className="text-sm">{companion.description}</p>
                   </div>

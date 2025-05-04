@@ -49,7 +49,7 @@ const CompanionSearch = () => {
     setFormData(prev => ({
       ...prev,
       destinations: prev.destinations.map((dest, i) => 
-        i === index ? value : dest
+        i === index ? { name: value, coordinates: dest.coordinates || null } : dest
       )
     }));
   };
@@ -58,7 +58,7 @@ const CompanionSearch = () => {
   const addDestination = () => {
     setFormData(prev => ({
       ...prev,
-      destinations: [...prev.destinations, '']
+      destinations: [...prev.destinations, { name: '', coordinates: null }]
     }));
   };
 
@@ -134,7 +134,7 @@ const CompanionSearch = () => {
       console.log('用戶已登錄:', user.uid);
 
       // 檢查是否至少選擇一個目的地
-      if (formData.destinations.length === 0 || formData.destinations[0] === '') {
+      if (formData.destinations.length === 0 || !formData.destinations[0].name) {
         console.log('未選擇目的地');
         setError('請至少選擇一個目的地');
         setLoading(false);
@@ -164,10 +164,10 @@ const CompanionSearch = () => {
       console.log('開始獲取目的地座標');
       const destinationsWithCoordinates = await Promise.all(
         formData.destinations.map(async (destination) => {
-          const coordinates = await geocodeAddress(destination);
-          console.log('目的地座標:', destination, coordinates);
+          const coordinates = await geocodeAddress(destination.name);
+          console.log('目的地座標:', destination.name, coordinates);
           return {
-            name: destination,
+            name: destination.name,
             coordinates: coordinates || { lat: 0, lng: 0 }
           };
         })
@@ -181,7 +181,9 @@ const CompanionSearch = () => {
         userName: user.displayName,
         userEmail: user.email,
         createdAt: serverTimestamp(),
-        status: 'active'
+        status: 'active',
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate)
       };
 
       console.log('準備保存的數據:', companionData);
@@ -214,20 +216,7 @@ const CompanionSearch = () => {
       navigate('/profile');
     } catch (error) {
       console.error('保存旅伴資料失敗:', error);
-      console.error('錯誤詳情:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
-      
-      // 根據錯誤類型顯示不同的錯誤信息
-      if (error.code === 'permission-denied') {
-        setError('權限不足，請確認您是否已登錄');
-      } else if (error.code === 'unauthenticated') {
-        setError('請先登錄後再發布貼文');
-      } else {
-        setError(`保存失敗: ${error.message}`);
-      }
+      setError(`保存失敗: ${error.message}`);
     } finally {
       console.log('設置 loading 狀態為 false');
       setLoading(false);
@@ -258,45 +247,34 @@ const CompanionSearch = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 目的地
               </label>
-              <div className="space-y-3">
+              <div className="flex flex-col space-y-2">
                 {formData.destinations.map((destination, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <div className="relative flex-1">
-                      <MapPin className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-                      <input
-                        type="text"
-                        className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                        placeholder={`目的地 ${index + 1}`}
-                        value={destination}
-                        onChange={(e) => updateDestination(index, e.target.value)}
-                        required
-                      />
-                    </div>
-                    {formData.destinations.length > 1 && (
+                    <input
+                      type="text"
+                      value={destination.name || ''}
+                      onChange={(e) => updateDestination(index, e.target.value)}
+                      className="flex-1 px-3 py-2 border rounded-lg"
+                      placeholder={`目的地 ${index + 1}`}
+                    />
+                    {index > 0 && (
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          removeDestination(index);
-                        }}
-                        className="p-2 text-gray-500 hover:text-red-500"
+                        type="button"
+                        onClick={() => removeDestination(index)}
+                        className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                       >
-                        <X className="w-5 h-5" />
+                        刪除
                       </button>
                     )}
                   </div>
                 ))}
-                {formData.destinations.length < 5 && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      addDestination();
-                    }}
-                    className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>添加目的地</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={addDestination}
+                  className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  添加目的地
+                </button>
               </div>
             </div>
 
