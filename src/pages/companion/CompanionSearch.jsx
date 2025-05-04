@@ -22,6 +22,7 @@ const CompanionSearch = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [destinations, setDestinations] = useState([]);
 
   useEffect(() => {
     if (isEditing && id) {
@@ -29,7 +30,11 @@ const CompanionSearch = () => {
         try {
           const companionDoc = await getDoc(doc(companionsCollection, id));
           if (companionDoc.exists()) {
-            setFormData(companionDoc.data());
+            const data = companionDoc.data();
+            setFormData(data);
+            if (data.destinations) {
+              setDestinations(data.destinations);
+            }
           }
         } catch (error) {
           console.error('獲取旅伴資料失敗:', error);
@@ -39,21 +44,21 @@ const CompanionSearch = () => {
     }
   }, [id, isEditing]);
 
+  // 更新目的地
+  const updateDestination = (index, value) => {
+    setFormData(prev => ({
+      ...prev,
+      destinations: prev.destinations.map((dest, i) => 
+        i === index ? value : dest
+      )
+    }));
+  };
+
   // 添加目的地輸入框
   const addDestination = () => {
     setFormData(prev => ({
       ...prev,
       destinations: [...prev.destinations, '']
-    }));
-  };
-
-  // 更新目的地
-  const updateDestination = (index, value) => {
-    const newDestinations = [...formData.destinations];
-    newDestinations[index] = value;
-    setFormData(prev => ({
-      ...prev,
-      destinations: newDestinations
     }));
   };
 
@@ -117,16 +122,49 @@ const CompanionSearch = () => {
       setLoading(true);
       setError('');
 
-      // 獲取第一個目的地的地理座標
-      const coordinates = await geocodeAddress(formData.destinations[0]);
-      if (!coordinates) {
-        setError('無法找到該目的地的座標，請確認目的地名稱是否正確');
+      // 檢查用戶是否已登錄
+      if (!user) {
+        setError('請先登錄後再發布貼文');
+        setLoading(false);
         return;
       }
 
+      // 檢查是否至少選擇一個目的地
+      if (destinations.length === 0) {
+        setError('請至少選擇一個目的地');
+        setLoading(false);
+        return;
+      }
+
+      // 檢查日期是否有效
+      if (!formData.startDate || !formData.endDate) {
+        setError('請選擇旅行日期');
+        setLoading(false);
+        return;
+      }
+
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+      if (startDate >= endDate) {
+        setError('結束日期必須晚於開始日期');
+        setLoading(false);
+        return;
+      }
+
+      // 獲取每個目的地的地理座標
+      const destinationsWithCoordinates = await Promise.all(
+        destinations.map(async (destination) => {
+          const coordinates = await geocodeAddress(destination);
+          return {
+            name: destination,
+            coordinates: coordinates || { lat: 0, lng: 0 }
+          };
+        })
+      );
+
       const companionData = {
         ...formData,
-        coordinates,
+        destinations: destinationsWithCoordinates,
         userId: user.uid,
         userName: user.displayName,
         userEmail: user.email,
@@ -140,12 +178,14 @@ const CompanionSearch = () => {
           updatedAt: serverTimestamp()
         });
       } else {
-        await setDoc(doc(companionsCollection), companionData);
+        const docRef = doc(companionsCollection);
+        await setDoc(docRef, companionData);
       }
+
       navigate('/profile');
     } catch (error) {
       console.error('保存旅伴資料失敗:', error);
-      setError('保存失敗，請稍後再試');
+      setError(`保存失敗: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -184,7 +224,7 @@ const CompanionSearch = () => {
                         type="text"
                         className="w-full pl-10 pr-4 py-2 border rounded-lg"
                         placeholder={`目的地 ${index + 1}`}
-                        value={formData.destination}
+                        value={destination}
                         onChange={(e) => updateDestination(index, e.target.value)}
                         required
                       />
