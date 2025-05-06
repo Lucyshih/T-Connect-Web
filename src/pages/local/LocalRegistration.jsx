@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { localsCollection } from '../../firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 
 const LocalRegistration = () => {
   const { id } = useParams();
@@ -17,10 +18,8 @@ const LocalRegistration = () => {
     services: [],
     price: '',
     description: '',
-    availability: {
-      startDate: '',
-      endDate: ''
-    },
+    startDate: '',
+    endDate: '',
     coordinates: { lat: 0, lng: 0 }
   });
   const [loading, setLoading] = useState(false);
@@ -32,6 +31,7 @@ const LocalRegistration = () => {
         try {
           const localDoc = await getDoc(doc(localsCollection, id));
           if (localDoc.exists()) {
+            const data= localDoc.data();
             setFormData(localDoc.data());
           }
         } catch (error) {
@@ -116,41 +116,47 @@ const LocalRegistration = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user) {
+      alert('請先登入');
+      return;
+    }
+
     try {
-      setLoading(true);
-      setError('');
+      // 獲取地理編碼
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.city)}`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const coordinates = {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        };
 
-      // 獲取城市的地理座標
-      const coordinates = await geocodeAddress(formData.city);
-      if (!coordinates) {
-        setError('無法找到該城市的座標，請確認城市名稱是否正確');
-        return;
-      }
+        // 將日期轉換為 Firestore Timestamp
+        const startDate = Timestamp.fromDate(new Date(formData.startDate));
+        const endDate = Timestamp.fromDate(new Date(formData.endDate));
 
-      const localData = {
-        ...formData,
-        coordinates,
-        userId: user.uid,
-        userName: user.displayName,
-        userEmail: user.email,
-        createdAt: serverTimestamp(),
-        status: 'active'
-      };
+        const localData = {
+          ...formData,
+          coordinates,
+          userId: user.uid,
+          userName: user.displayName || '匿名用戶',
+          createdAt: serverTimestamp(),
+          startDate,
+          endDate
+        };
 
-      if (isEditing) {
-        await updateDoc(doc(localsCollection, id), {
-          ...localData,
-          updatedAt: serverTimestamp()
-        });
+        await addDoc(localsCollection, localData);
+        alert('地陪貼文發布成功！');
+        navigate('/');
       } else {
-        await setDoc(doc(localsCollection), localData);
+        alert('無法獲取城市座標，請檢查城市名稱是否正確');
       }
-      navigate('/profile');
     } catch (error) {
-      console.error('保存地陪資料失敗:', error);
-      setError('保存失敗，請稍後再試');
-    } finally {
-      setLoading(false);
+      console.error('Error saving local post:', error);
+      alert('發布失敗，請稍後再試');
     }
   };
 
@@ -306,13 +312,9 @@ const LocalRegistration = () => {
                   <input
                     type="date"
                     className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                    value={formData.availability.startDate}
+                    value={formData.startDate}
                     onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      availability: {
-                        ...prev.availability,
-                        startDate: e.target.value
-                      }
+                      ...prev, startDate: e.target.value
                     }))}
                     required
                   />
@@ -328,13 +330,10 @@ const LocalRegistration = () => {
                   <input
                     type="date"
                     className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                    value={formData.availability.endDate}
+                    value={formData.endDate}
                     onChange={(e) => setFormData(prev => ({
                       ...prev,
-                      availability: {
-                        ...prev.availability,
                         endDate: e.target.value
-                      }
                     }))}
                     required
                   />

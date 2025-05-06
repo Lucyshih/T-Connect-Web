@@ -119,7 +119,12 @@ export default function ExchangePlatform() {
             post.startDate ? {
               start: new Date(post.startDate.seconds * 1000).toISOString(),
               end: new Date(post.endDate.seconds * 1000).toISOString()
-            } : null
+            } : null,
+          rawDates: {
+            startDate: post.startDate,
+            endDate: post.endDate,
+            selectedRanges: post.selectedRanges
+          }
         });
       }
 
@@ -385,6 +390,12 @@ export default function ExchangePlatform() {
                     <div className="p-2">
                       <h3 className="font-bold">{local.title}</h3>
                       <p className="text-sm text-gray-600">{local.city}</p>
+                      {local.startDate && local.endDate && (
+                        <p className="text-sm">
+                          {new Date(local.startDate.seconds * 1000).toLocaleDateString()} - 
+                          {new Date(local.endDate.seconds * 1000).toLocaleDateString()}
+                        </p>
+                      )}
                       <p className="text-sm">{local.description}</p>
                     </div>
                   </Popup>
