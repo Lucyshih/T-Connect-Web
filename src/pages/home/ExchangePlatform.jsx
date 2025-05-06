@@ -60,15 +60,21 @@ export default function ExchangePlatform() {
     startDate: '',
     endDate: ''
   });
+  const [isSearching, setIsSearching] = useState(false);
 
   // 過濾貼文
   const filterPosts = (posts) => {
+    // 如果沒有搜索條件，顯示所有貼文
+    if (!isSearching || (!searchParams.city && !searchParams.startDate && !searchParams.endDate)) {
+      return posts;
+    }
+
     return posts.filter(post => {
       // 檢查城市是否匹配
       const cityMatch = !searchParams.city || 
         (post.type === 'companion' 
-          ? post.destinations?.some(dest => dest.toLowerCase().includes(searchParams.city.toLowerCase()))
-          : post.location.toLowerCase().includes(searchParams.city.toLowerCase()));
+          ? post.destinations?.some(dest => dest.name.toLowerCase().includes(searchParams.city.toLowerCase()))
+          : post.location?.toLowerCase().includes(searchParams.city.toLowerCase()));
 
       // 檢查日期是否匹配
       let dateMatch = true;
@@ -76,14 +82,10 @@ export default function ExchangePlatform() {
         const searchStart = new Date(searchParams.startDate);
         const searchEnd = new Date(searchParams.endDate);
 
-        if (post.type === 'companion') {
-          // 旅伴貼文：檢查搜索日期是否在貼文日期範圍內
-          const postStart = new Date(post.startDate.seconds * 1000);
-          const postEnd = new Date(post.endDate.seconds * 1000);
-          dateMatch = searchStart <= postEnd && searchEnd >= postStart;
-        } else {
-          // 沙發和地陪貼文：檢查是否有任何日期區間與搜索日期重疊
-          dateMatch = post.selectedRanges?.some(range => {
+        // 根據貼文類型進行不同的日期處理
+        if (post.selectedRanges) {
+          // 沙發貼文
+          dateMatch = post.selectedRanges.some(range => {
             const rangeStart = new Date(range.start.seconds * 1000);
             const rangeEnd = new Date(range.end.seconds * 1000);
             return (
@@ -91,8 +93,34 @@ export default function ExchangePlatform() {
               (searchEnd >= rangeStart && searchEnd <= rangeEnd) || // 搜索結束日期在區間內
               (searchStart <= rangeStart && searchEnd >= rangeEnd) // 搜索區間完全包含貼文區間
             );
-          }) || false;
+          });
+        } else if (post.startDate && post.endDate) {
+          // 旅伴和地陪貼文
+          const postStart = new Date(post.startDate.seconds * 1000);
+          const postEnd = new Date(post.endDate.seconds * 1000);
+          dateMatch = (
+            (postStart <= searchEnd && postEnd >= searchStart) || // 貼文日期範圍與搜索日期範圍有重疊
+            (searchStart <= postEnd && searchEnd >= postStart)    // 搜索日期範圍與貼文日期範圍有重疊
+          );
         }
+
+        // 添加調試日誌
+        console.log('過濾貼文:', {
+          postId: post.id,
+          type: post.selectedRanges ? 'couch' : (post.startDate ? 'companion/local' : 'unknown'),
+          cityMatch,
+          dateMatch,
+          searchParams,
+          postDates: post.selectedRanges ? 
+            post.selectedRanges.map(range => ({
+              start: new Date(range.start.seconds * 1000).toISOString(),
+              end: new Date(range.end.seconds * 1000).toISOString()
+            })) :
+            post.startDate ? {
+              start: new Date(post.startDate.seconds * 1000).toISOString(),
+              end: new Date(post.endDate.seconds * 1000).toISOString()
+            } : null
+        });
       }
 
       return cityMatch && dateMatch;
@@ -123,7 +151,14 @@ export default function ExchangePlatform() {
   // 處理搜索
   const handleSearch = (e) => {
     e.preventDefault();
-    // 搜索邏輯已經在 filterPosts 中實現
+    setIsSearching(true);
+    console.log('搜索參數:', searchParams);
+  };
+
+  // 處理清除搜索
+  const handleClearSearch = () => {
+    setSearchParams({ city: '', startDate: '', endDate: '' });
+    setIsSearching(false);
   };
 
   return (
@@ -226,7 +261,7 @@ export default function ExchangePlatform() {
               </button>
               <button
                 type="button"
-                onClick={() => setSearchParams({ city: '', startDate: '', endDate: '' })}
+                onClick={handleClearSearch}
                 className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
               >
                 清除
