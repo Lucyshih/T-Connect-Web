@@ -71,10 +71,23 @@ export default function ExchangePlatform() {
 
     return posts.filter(post => {
       // 檢查城市是否匹配
-      const cityMatch = !searchParams.city || 
-        (post.type === 'companion' 
-          ? post.destinations?.some(dest => dest.name.toLowerCase().includes(searchParams.city.toLowerCase()))
-          : post.location?.toLowerCase().includes(searchParams.city.toLowerCase()));
+      let cityMatch = true;
+      if (searchParams.city) {
+        const searchCity = searchParams.city.toLowerCase();
+        // 根據貼文類型判斷
+        if (post.selectedRanges) {
+          // 沙發貼文
+          cityMatch = post.location?.toLowerCase().includes(searchCity);
+        } else if (post.destinations) {
+          // 旅伴貼文
+          cityMatch = post.destinations.some(dest => 
+            dest.name.toLowerCase().includes(searchCity)
+          );
+        } else {
+          // 地陪貼文
+          cityMatch = post.city?.toLowerCase().includes(searchCity);
+        }
+      }
 
       // 檢查日期是否匹配
       let dateMatch = true;
