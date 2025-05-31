@@ -122,6 +122,9 @@ const LocalRegistration = () => {
     }
 
     try {
+      setLoading(true);
+      setError('');
+
       // 獲取地理編碼
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.city)}`
@@ -143,20 +146,31 @@ const LocalRegistration = () => {
           coordinates,
           userId: user.uid,
           userName: user.displayName || '匿名用戶',
-          createdAt: serverTimestamp(),
           startDate,
-          endDate
+          endDate,
+          updatedAt: serverTimestamp()
         };
 
-        await addDoc(localsCollection, localData);
-        alert('地陪貼文發布成功！');
-        navigate('/');
+        if (isEditing && id) {
+          // 如果是編輯模式，更新現有貼文
+          await updateDoc(doc(localsCollection, id), localData);
+          alert('地陪貼文更新成功！');
+        } else {
+          // 如果是新增模式，創建新貼文
+          localData.createdAt = serverTimestamp();
+          await addDoc(localsCollection, localData);
+          alert('地陪貼文發布成功！');
+        }
+        
+        navigate('/profile');
       } else {
-        alert('無法獲取城市座標，請檢查城市名稱是否正確');
+        setError('無法獲取城市座標，請檢查城市名稱是否正確');
       }
     } catch (error) {
       console.error('Error saving local post:', error);
-      alert('發布失敗，請稍後再試');
+      setError('發布失敗，請稍後再試');
+    } finally {
+      setLoading(false);
     }
   };
 
