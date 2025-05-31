@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, User, Mail, MapPin, Calendar } from 'lucide-react';
 
 const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   if (!isOpen) return null;
@@ -104,6 +104,68 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
     }
   };
 
+  const renderUserProfile = () => {
+    return (
+      <div className="mt-6 border-t border-gray-200 pt-6">
+        <h3 className="text-lg font-semibold mb-4">發布者資料</h3>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <User className="w-5 h-5 text-gray-500" />
+            <span>{post.userName || '匿名用戶'}</span>
+          </div>
+          {post.userEmail && (
+            <div className="flex items-center space-x-2">
+              <Mail className="w-5 h-5 text-gray-500" />
+              <span>{post.userEmail}</span>
+            </div>
+          )}
+          {post.userLocation && (
+            <div className="flex items-center space-x-2">
+              <MapPin className="w-5 h-5 text-gray-500" />
+              <span>{post.userLocation}</span>
+            </div>
+          )}
+          {post.userBio && (
+            <div className="mt-4">
+              <h4 className="font-medium text-gray-700 mb-2">關於我</h4>
+              <p className="text-gray-600 whitespace-pre-wrap">{post.userBio}</p>
+            </div>
+          )}
+          {post.userLanguages && (
+            <div className="mt-4">
+              <h4 className="font-medium text-gray-700 mb-2">語言能力</h4>
+              <div className="flex flex-wrap gap-2">
+                {post.userLanguages.map((lang, index) => (
+                  <span 
+                    key={index}
+                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                  >
+                    {lang}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {post.userInterests && (
+            <div className="mt-4">
+              <h4 className="font-medium text-gray-700 mb-2">興趣愛好</h4>
+              <div className="flex flex-wrap gap-2">
+                {post.userInterests.map((interest, index) => (
+                  <span 
+                    key={index}
+                    className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm"
+                  >
+                    {interest}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[1000] overflow-hidden">
       {/* 背景遮罩 */}
@@ -138,6 +200,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
             <div className="flex-1 overflow-y-auto">
               <div className="px-4 py-6 sm:px-6">
                 {renderPostContent()}
+                {renderUserProfile()}
               </div>
             </div>
 
