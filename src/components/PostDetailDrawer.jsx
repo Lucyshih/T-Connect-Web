@@ -105,7 +105,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-[1000] overflow-hidden">
       {/* 背景遮罩 */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"

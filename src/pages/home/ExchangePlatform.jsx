@@ -352,13 +352,17 @@ export default function ExchangePlatform() {
               filterPosts(couches).map(couch => (
                 <Marker
                   key={couch.id}
-                  position={couch.coordinates}
+                  position={couch.coordinates ? [couch.coordinates.lat, couch.coordinates.lng] : [0, 0]}
                   icon={couchIcon}
                 >
                   <Popup>
                     <div className="p-2">
                       <h3 className="font-bold">{couch.title}</h3>
                       <p className="text-sm text-gray-600">{couch.location}</p>
+                      <p className="text-sm">{couch.description}</p>
+                      <p className="text-sm font-medium text-blue-600">
+                        €{couch.pricePerNight}/晚
+                      </p>
                       <button
                         onClick={() => handleMarkerClick(couch, 'couch')}
                         className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
@@ -371,32 +375,47 @@ export default function ExchangePlatform() {
               ))
             ) : null}
             {activeFilter === 'all' || activeFilter === 'companion' ? (
-              filterPosts(companions).map(companion => (
-                <Marker
-                  key={companion.id}
-                  position={companion.destinations[0].coordinates}
-                  icon={companionIcon}
-                >
-                  <Popup>
-                    <div className="p-2">
-                      <h3 className="font-bold">{companion.title}</h3>
-                      <p className="text-sm text-gray-600">
-                        {companion.destinations.map(dest => dest.name).join('、')}
-                      </p>
-                      <p className="text-sm">
-                        {new Date(companion.startDate.seconds * 1000).toLocaleDateString()} - 
-                        {new Date(companion.endDate.seconds * 1000).toLocaleDateString()}
-                      </p>
-                      <button
+              filterPosts(companions).map(companion => {
+                // 檢查目的地和座標是否存在
+                const firstDestination = companion.destinations?.[0];
+                const coordinates = firstDestination?.coordinates;
+                
+                // 如果沒有有效的座標，跳過這個標記
+                if (!coordinates?.lat || !coordinates?.lng) {
+                  console.warn(`旅伴貼文 ${companion.id} 缺少有效的座標`);
+                  return null;
+                }
+
+                return (
+                  <Marker
+                    key={companion.id}
+                    position={[coordinates.lat, coordinates.lng]}
+                    icon={companionIcon}
+                  >
+                    <Popup>
+                      <div className="p-2">
+                        <h3 className="font-bold">{companion.title}</h3>
+                        <p className="text-sm text-gray-600">
+                          目的地：{companion.destinations?.map(dest => dest.name).join('、')}
+                        </p>
+                        <p className="text-sm">
+                          {new Date(companion.startDate.seconds * 1000).toLocaleDateString()} - 
+                          {new Date(companion.endDate.seconds * 1000).toLocaleDateString()}
+                        </p>
+                        <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
+                        <p className="text-sm">{companion.description}</p>
+                        <p className="text-sm text-gray-500">發布者：{companion.userName}</p>
+                        <button
                         onClick={() => handleMarkerClick(companion, 'companion')}
                         className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                       >
                         查看詳情
                       </button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })
             ) : null}
             {activeFilter === 'all' || activeFilter === 'local' ? (
               filterPosts(locals).map(local => (
@@ -409,6 +428,13 @@ export default function ExchangePlatform() {
                     <div className="p-2">
                       <h3 className="font-bold">{local.title}</h3>
                       <p className="text-sm text-gray-600">{local.city}</p>
+                      {local.startDate && local.endDate && (
+                        <p className="text-sm">
+                          {new Date(local.startDate.seconds * 1000).toLocaleDateString()} - 
+                          {new Date(local.endDate.seconds * 1000).toLocaleDateString()}
+                        </p>
+                      )}
+                      <p className="text-sm">{local.description}</p>
                       <button
                         onClick={() => handleMarkerClick(local, 'local')}
                         className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
