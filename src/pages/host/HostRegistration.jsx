@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MapPin, Upload, Plus, X, Home, Compass } from 'lucide-react';
+import { MapPin, Upload, Plus, X, Home, Compass,Camera } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { couchesCollection } from '../../firebase';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 
 const Calendar = ({ selectedRanges, setSelectedRanges }) => {
@@ -165,6 +166,8 @@ const HostRegistration = () => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(!!id);
   const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     title: '',
     location: '',
@@ -174,6 +177,7 @@ const HostRegistration = () => {
     startDate: '',
     endDate: '',
     facilities: [],
+    photos: [],
     coordinates: { lat: 0, lng: 0 }
   });
   const [selectedRanges, setSelectedRanges] = useState([]);
@@ -226,6 +230,61 @@ const HostRegistration = () => {
       console.error('地理編碼錯誤:', error);
       return null;
     }
+  };
+  // 上傳沙發照片
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      // 創建存儲引用
+      const storage = getStorage();
+      const storageRef = ref(storage, `HostRegistration/${user.uid}/${Date.now()}_${file.name}`);
+      
+      // 上傳文件
+      await uploadBytes(storageRef, file);
+      
+      // 獲取下載 URL
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // 只更新本地狀態，不更新 Firestore
+      setFormData(prev => ({
+        ...prev,
+        photos: [...(prev.photos || []), downloadURL]
+      }));
+
+    } catch (error) {
+      console.error('上傳照片失敗:', error);
+      setError('上傳照片失敗，請稍後再試');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async (index) => {
+    try {
+      const newPhotos = [...formData.photos];
+      newPhotos.splice(index, 1);
+      
+      // 只更新本地狀態，不更新 Firestore
+      setFormData(prev => ({
+        ...prev,
+        photos: newPhotos
+      }));
+    } catch (error) {
+      console.error('刪除照片失敗:', error);
+      setError('刪除照片失敗，請稍後再試');
+    }
+  };
+
+  const toggleFacility = (facility) => {
+    setFormData(prev => ({
+      ...prev,
+      facilities: prev.facilities.includes(facility)
+        ? prev.facilities.filter(f => f !== facility)
+        : [...prev.facilities, facility]
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -330,29 +389,6 @@ const HostRegistration = () => {
       console.log('設置 loading 狀態為 false');
       setLoading(false);
     }
-  };
-
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const newImages = files.map(file => ({
-      id: Math.random().toString(36),
-      url: URL.createObjectURL(file),
-      file
-    }));
-    setImages(prev => [...prev, ...newImages]);
-  };
-
-  const removeImage = (id) => {
-    setImages(prev => prev.filter(img => img.id !== id));
-  };
-
-  const toggleFacility = (facility) => {
-    setFormData(prev => ({
-      ...prev,
-      facilities: prev.facilities.includes(facility)
-        ? prev.facilities.filter(f => f !== facility)
-        : [...prev.facilities, facility]
-    }));
   };
 
   return (
@@ -468,37 +504,40 @@ const HostRegistration = () => {
           {/* 照片上傳區域 */}
           <div className="mb-8">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              上傳住宿照片
+              上傳住宿照片 (最多 5 張)
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {images.map(img => (
-                <div key={img.id} className="relative aspect-square">
+              {formData.photos?.map((photoUrl, index) => (
+                <div key={index} className="relative aspect-square">
                   <img 
-                    src={img.url} 
+                    src={photoUrl} 
                     alt="預覽" 
                     className="w-full h-full object-cover rounded-lg"
                   />
                   <button
                     type="button"
-                    onClick={() => removeImage(img.id)}
-                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm"
+                    onClick={() => handleDeletePhoto(index)}
+                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
                   >
                     <X className="w-4 h-4 text-gray-500" />
                   </button>
                 </div>
               ))}
-              {images.length < 8 && (
-                <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500">
-                  <Upload className="w-6 h-6 text-gray-400" />
-                  <span className="text-sm text-gray-500 mt-2">上傳照片</span>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageUpload}
-                  />
-                </label>
+              {(!formData.photos || formData.photos.length < 5) && (
+                <div className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500">
+                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                    />
+                    <Camera className="w-6 h-6 text-gray-400" />
+                    <span className="text-sm text-gray-500 mt-2">
+                      {uploading ? '上傳中...' : '上傳照片'}
+                    </span>
+                  </label>
+                </div>
               )}
             </div>
           </div>
