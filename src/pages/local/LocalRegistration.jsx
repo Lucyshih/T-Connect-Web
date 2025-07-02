@@ -32,7 +32,33 @@ const LocalRegistration = () => {
           const localDoc = await getDoc(doc(localsCollection, id));
           if (localDoc.exists()) {
             const data= localDoc.data();
-            setFormData(localDoc.data());
+            let startDate = '';
+            let endDate = '';
+            if (data.startDate) {
+              if (typeof data.startDate === 'string') {
+                startDate = data.startDate;
+              } else if (data.startDate.toDate) {
+                const d = data.startDate.toDate();
+                startDate = d.toISOString().slice(0, 10);
+              } else if (data.startDate instanceof Date) {
+                startDate = data.startDate.toISOString().slice(0, 10);
+              }
+            }
+            if (data.endDate) {
+              if (typeof data.endDate === 'string') {
+                endDate = data.endDate;
+              } else if (data.endDate.toDate) {
+                const d = data.endDate.toDate();
+                endDate = d.toISOString().slice(0, 10);
+              } else if (data.endDate instanceof Date) {
+                endDate = data.endDate.toISOString().slice(0, 10);
+              }
+            }
+            setFormData({
+              ...data,
+              startDate,
+              endDate
+            });
           }
         } catch (error) {
           console.error('獲取地陪資料失敗:', error);
