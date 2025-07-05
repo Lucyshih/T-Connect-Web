@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { MapPin, Users, Calendar, Home, Compass, UserCheck } from 'lucide-react';
+import { MapPin, Users, Calendar, Home, Compass, UserCheck, MessageCircle } from 'lucide-react';
 import SearchBar from '../../components/SearchBar';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -212,6 +212,13 @@ export default function ExchangePlatform() {
                   className="text-gray-600 hover:text-blue-600"
                 >
                   個人檔案
+                </button>
+                <button
+                  onClick={() => navigate('/chatrooms')}
+                  className="text-gray-600 hover:text-blue-600 flex items-center space-x-1"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>聊天室</span>
                 </button>
                 <button
                   onClick={() => navigate('/host')}

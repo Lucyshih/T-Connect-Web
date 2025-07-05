@@ -8,6 +8,8 @@ import Profile from './pages/profile/Profile.jsx';
 import Login from './pages/auth/Login.jsx';
 import Signup from './pages/auth/Signup.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
+import Chatroom from './pages/chatroom/Chatroom.jsx';
+import ChatroomList from './pages/chatroom/ChatroomList.jsx';
 
 function App() {
   return (
@@ -72,6 +74,22 @@ function App() {
               <Profile />
             </PrivateRoute>
           }
+        />
+        <Route
+          path="/chatrooms"
+          element={
+            <PrivateRoute>
+              <ChatroomList />
+            </PrivateRoute>
+          }
+        />
+        <Route 
+          path="/chatroom/:chatroomId" 
+          element={
+            <PrivateRoute>
+              <Chatroom />
+            </PrivateRoute>
+          } 
         />
       </Routes>
     </BrowserRouter>

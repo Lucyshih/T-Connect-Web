@@ -30,5 +30,6 @@ export const couchesCollection = collection(db, 'couches');
 export const companionsCollection = collection(db, 'companions');
 export const localsCollection = collection(db, 'locals');
 export const profilesCollection = collection(db, 'profiles');
+export const chatroomsCollection = collection(db, 'chatrooms');
 
 export { auth, db, storage, serverTimestamp };

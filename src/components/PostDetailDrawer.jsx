@@ -1,7 +1,15 @@
 import React from 'react';
 import { X, User, Mail, MapPin, Calendar } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import { chatroomsCollection, serverTimestamp } from '../firebase';
+import { addDoc, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
 
 const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
+  const { user } = useAuth();
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [success, setSuccess] = React.useState('');
+
   if (!isOpen) return null;
 
   const renderPostContent = () => {
@@ -166,6 +174,42 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
     );
   };
 
+  // 開啟聊天室邏輯
+  const handleOpenChatroom = async () => {
+    if (!user) {
+      setError('請先登入才能開啟聊天室');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      // 建立聊天房
+      const chatroomData = {
+        participants: [post.userId, user.uid],
+        postId: post.id || post.postId || '',
+        createdAt: serverTimestamp(),
+      };
+      const chatroomRef = await addDoc(chatroomsCollection, chatroomData);
+      const chatroomId = chatroomRef.id;
+      
+      // 更新聊天房，加入 chatroomId
+      await updateDoc(chatroomRef, { chatroomId });
+      
+      setSuccess('聊天室已建立！');
+      setTimeout(() => {
+        setSuccess('');
+        onClose();
+        // 導向聊天室頁面
+        window.location.href = `/chatroom/${chatroomId}`;
+      }, 1000);
+    } catch (e) {
+      setError('建立聊天室失敗，請稍後再試');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[1000] overflow-hidden">
       {/* 背景遮罩 */}
@@ -206,12 +250,15 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
 
             {/* 底部 */}
             <div className="flex-shrink-0 px-4 py-4 border-t border-gray-200">
+              {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+              {success && <div className="text-green-600 text-sm mb-2">{success}</div>}
               <button
                 type="button"
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                onClick={onClose}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                onClick={handleOpenChatroom}
+                disabled={loading || !!success}
               >
-                關閉
+                {loading ? '建立中...' : '開啟聊天室'}
               </button>
             </div>
           </div>
