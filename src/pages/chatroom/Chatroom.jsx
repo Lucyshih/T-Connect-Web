@@ -229,7 +229,7 @@ export default function Chatroom() {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/chatrooms')}
               className="p-1 hover:bg-gray-100 rounded"
             >
               <ArrowLeft className="w-4 h-4" />
