@@ -8,8 +8,8 @@ import { MessageCircle, User, MapPin, Calendar, Users } from 'lucide-react';
 export default function ChatroomList() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [myPostsChatrooms, setMyPostsChatrooms] = useState([]);
-  const [myApplicationsChatrooms, setMyApplicationsChatrooms] = useState([]);
+  const [receivedChatrooms, setReceivedChatrooms] = useState([]);
+  const [sentChatrooms, setSentChatrooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -32,8 +32,8 @@ export default function ChatroomList() {
         }));
 
         // 分類聊天室
-        const myPosts = [];
-        const myApplications = [];
+        const received = [];
+        const sent = [];
 
         for (const chatroom of chatrooms) {
           try {
@@ -52,19 +52,19 @@ export default function ChatroomList() {
               lastMessage: await getLastMessage(chatroom.id)
             };
 
-            // 判斷是否為我發布的貼文
+            // 判斷是否為我發布的貼文（我收到的申請）
             if (postData.userId === user.uid) {
-              myPosts.push(chatroomWithDetails);
+              received.push(chatroomWithDetails);
             } else {
-              myApplications.push(chatroomWithDetails);
+              sent.push(chatroomWithDetails);
             }
           } catch (error) {
             console.error('獲取聊天室詳細資料失敗:', error);
           }
         }
 
-        setMyPostsChatrooms(myPosts);
-        setMyApplicationsChatrooms(myApplications);
+        setReceivedChatrooms(received);
+        setSentChatrooms(sent);
       } catch (error) {
         setError('載入聊天室失敗');
       } finally {
@@ -133,7 +133,7 @@ export default function ChatroomList() {
     });
   };
 
-  const renderChatroomCard = (chatroom, isMyPost = true) => {
+  const renderChatroomCard = (chatroom, isReceived = true) => {
     const { postData, otherUserData, lastMessage } = chatroom;
     
     return (
@@ -162,7 +162,7 @@ export default function ChatroomList() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-gray-900 truncate">
-                {isMyPost ? otherUserData?.displayName || '匿名用戶' : postData?.userName || '匿名用戶'}
+                {isReceived ? otherUserData?.displayName || '匿名用戶' : postData?.userName || '匿名用戶'}
               </h3>
               {lastMessage && (
                 <span className="text-xs text-gray-500">
@@ -217,38 +217,38 @@ export default function ChatroomList() {
 
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 左欄：我發布的貼文聊天室 */}
+          {/* 左欄：我收到的申請聊天室 */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <MessageCircle className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">我發布的貼文</h2>
+              <h2 className="text-lg font-semibold text-gray-900">我收到的申請</h2>
             </div>
             
-            {myPostsChatrooms.length === 0 ? (
+            {receivedChatrooms.length === 0 ? (
               <div className="bg-white rounded-lg p-6 text-center text-gray-500">
                 尚無申請者
               </div>
             ) : (
               <div className="space-y-3">
-                {myPostsChatrooms.map(chatroom => renderChatroomCard(chatroom, true))}
+                {receivedChatrooms.map(chatroom => renderChatroomCard(chatroom, true))}
               </div>
             )}
           </div>
 
-          {/* 右欄：我申請的貼文聊天室 */}
+          {/* 右欄：我送出的申請聊天室 */}
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <MessageCircle className="w-5 h-5 text-green-600" />
-              <h2 className="text-lg font-semibold text-gray-900">我申請的貼文</h2>
+              <h2 className="text-lg font-semibold text-gray-900">我送出的申請</h2>
             </div>
             
-            {myApplicationsChatrooms.length === 0 ? (
+            {sentChatrooms.length === 0 ? (
               <div className="bg-white rounded-lg p-6 text-center text-gray-500">
                 尚無申請記錄
               </div>
             ) : (
               <div className="space-y-3">
-                {myApplicationsChatrooms.map(chatroom => renderChatroomCard(chatroom, false))}
+                {sentChatrooms.map(chatroom => renderChatroomCard(chatroom, false))}
               </div>
             )}
           </div>
