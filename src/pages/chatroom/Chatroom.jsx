@@ -210,6 +210,15 @@ export default function Chatroom() {
             </div>
           )}
         </div>
+        {/* 申請者資料按鈕 */}
+        {chatroom && chatroom.applicantId && (
+          <button
+            className="mt-6 w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-semibold"
+            onClick={() => navigate(`/profile/${chatroom.applicantId}`)}
+          >
+            查看申請者資料
+          </button>
+        )}
       </div>
     );
   };
