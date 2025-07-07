@@ -23,7 +23,6 @@ export default function ChatroomList() {
     const fetchChatrooms = async () => {
       try {
         setLoading(true);
-        
         // 獲取所有聊天室
         const chatroomsQuery = query(chatroomsCollection, where('participants', 'array-contains', user.uid));
         const chatroomsSnapshot = await getDocs(chatroomsQuery);
@@ -32,38 +31,44 @@ export default function ChatroomList() {
           ...doc.data()
         }));
 
-        // 分類聊天室
-        const received = [];
-        const sent = [];
-
-        for (const chatroom of chatrooms) {
+        // 並行查詢所有聊天室細節
+        const chatroomDetails = await Promise.all(chatrooms.map(async (chatroom) => {
           try {
             // 獲取貼文資料
             const postData = await getPostData(chatroom.postId);
-            if (!postData) continue;
+            if (!postData) return null;
 
             // 獲取申請者/發布者資料
             const otherParticipantId = chatroom.participants.find(id => id !== user.uid);
             const otherUserData = await getUserData(otherParticipantId);
 
-            const chatroomWithDetails = {
+            const lastMessage = await getLastMessage(chatroom.id);
+
+            return {
               ...chatroom,
               postData,
               otherUserData,
-              lastMessage: await getLastMessage(chatroom.id)
+              lastMessage
             };
-
-            // 判斷是否為我發布的貼文（我收到的申請）
-            if (postData.userId === user.uid) {
-              received.push(chatroomWithDetails);
-            } else {
-              sent.push(chatroomWithDetails);
-            }
           } catch (error) {
             console.error('獲取聊天室詳細資料失敗:', error);
+            return null;
+          }
+        }));
+
+        // 過濾掉查詢失敗的聊天室
+        const validChatrooms = chatroomDetails.filter(Boolean);
+
+        // 分類聊天室
+        const received = [];
+        const sent = [];
+        for (const chatroomWithDetails of validChatrooms) {
+          if (chatroomWithDetails.postData.userId === user.uid) {
+            received.push(chatroomWithDetails);
+          } else {
+            sent.push(chatroomWithDetails);
           }
         }
-
         setReceivedChatrooms(received);
         setSentChatrooms(sent);
       } catch (error) {
