@@ -1,8 +1,8 @@
 import React from 'react';
 import { X, User, Mail, MapPin, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { chatroomsCollection, serverTimestamp } from '../firebase';
-import { addDoc, doc as firestoreDoc, updateDoc } from 'firebase/firestore';
+import { chatroomsCollection, serverTimestamp, profilesCollection } from '../firebase';
+import { addDoc, doc as firestoreDoc, updateDoc, getDoc } from 'firebase/firestore';
 
 const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const { user } = useAuth();
@@ -184,23 +184,35 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
     setError('');
     setSuccess('');
     try {
-      // 建立聊天房
+      // 取得貼文發布者資料
+      const postOwnerId = post.userId;
+      const postOwnerProfileDoc = await getDoc(firestoreDoc(profilesCollection, postOwnerId));
+      const postOwnerProfile = postOwnerProfileDoc.exists() ? postOwnerProfileDoc.data() : {};
+      // 取得申請者資料
+      const applicantProfileDoc = await getDoc(firestoreDoc(profilesCollection, user.uid));
+      const applicantProfile = applicantProfileDoc.exists() ? applicantProfileDoc.data() : {};
+      // 建立聊天房，冗餘寫入必要資訊
       const chatroomData = {
-        participants: [post.userId, user.uid],
+        participants: [postOwnerId, user.uid],
         postId: post.id || post.postId || '',
+        postTitle: post.title || '',
+        postOwnerId,
+        postOwnerName: postOwnerProfile.displayName || '',
+        postOwnerAvatar: postOwnerProfile.photos?.[0] || '',
+        applicantId: user.uid,
+        applicantName: applicantProfile.displayName || user.displayName || '',
+        applicantAvatar: applicantProfile.photos?.[0] || user.photoURL || '',
+        lastMessage: null,
         createdAt: serverTimestamp(),
       };
       const chatroomRef = await addDoc(chatroomsCollection, chatroomData);
       const chatroomId = chatroomRef.id;
-      
       // 更新聊天房，加入 chatroomId
       await updateDoc(chatroomRef, { chatroomId });
-      
       setSuccess('聊天室已建立！');
       setTimeout(() => {
         setSuccess('');
         onClose();
-        // 導向聊天室頁面
         window.location.href = `/chatroom/${chatroomId}`;
       }, 1000);
     } catch (e) {

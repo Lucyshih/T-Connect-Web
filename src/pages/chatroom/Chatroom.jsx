@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import Navbar from '../../components/Navbar';
 import { chatroomsCollection, serverTimestamp, companionsCollection, couchesCollection, localsCollection } from '../../firebase';
-import { doc, collection, addDoc, onSnapshot, query, orderBy, getDoc } from 'firebase/firestore';
+import { doc, collection, addDoc, onSnapshot, query, orderBy, getDoc, updateDoc } from 'firebase/firestore';
 import { Send, ArrowLeft, User, MapPin, Calendar, Users, Compass } from 'lucide-react';
 
 export default function Chatroom() {
@@ -110,10 +110,18 @@ export default function Chatroom() {
 
     try {
       const messagesRef = collection(doc(chatroomsCollection, chatroomId), 'messages');
-      await addDoc(messagesRef, {
+      const msg = {
         senderId: user.uid,
         text: newMessage.trim(),
         timestamp: serverTimestamp(),
+      };
+      await addDoc(messagesRef, msg);
+      // 同步更新 chatroom 文件的 lastMessage
+      await updateDoc(doc(chatroomsCollection, chatroomId), {
+        lastMessage: {
+          ...msg,
+          timestamp: serverTimestamp(),
+        }
       });
       setNewMessage('');
     } catch (error) {

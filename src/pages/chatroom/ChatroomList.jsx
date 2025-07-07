@@ -23,52 +23,16 @@ export default function ChatroomList() {
     const fetchChatrooms = async () => {
       try {
         setLoading(true);
-        // 獲取所有聊天室
+        // 只查 chatrooms 集合
         const chatroomsQuery = query(chatroomsCollection, where('participants', 'array-contains', user.uid));
         const chatroomsSnapshot = await getDocs(chatroomsQuery);
         const chatrooms = chatroomsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-
-        // 並行查詢所有聊天室細節
-        const chatroomDetails = await Promise.all(chatrooms.map(async (chatroom) => {
-          try {
-            // 獲取貼文資料
-            const postData = await getPostData(chatroom.postId);
-            if (!postData) return null;
-
-            // 獲取申請者/發布者資料
-            const otherParticipantId = chatroom.participants.find(id => id !== user.uid);
-            const otherUserData = await getUserData(otherParticipantId);
-
-            const lastMessage = await getLastMessage(chatroom.id);
-
-            return {
-              ...chatroom,
-              postData,
-              otherUserData,
-              lastMessage
-            };
-          } catch (error) {
-            console.error('獲取聊天室詳細資料失敗:', error);
-            return null;
-          }
-        }));
-
-        // 過濾掉查詢失敗的聊天室
-        const validChatrooms = chatroomDetails.filter(Boolean);
-
         // 分類聊天室
-        const received = [];
-        const sent = [];
-        for (const chatroomWithDetails of validChatrooms) {
-          if (chatroomWithDetails.postData.userId === user.uid) {
-            received.push(chatroomWithDetails);
-          } else {
-            sent.push(chatroomWithDetails);
-          }
-        }
+        const received = chatrooms.filter(room => room.postOwnerId === user.uid);
+        const sent = chatrooms.filter(room => room.applicantId === user.uid);
         setReceivedChatrooms(received);
         setSentChatrooms(sent);
       } catch (error) {
@@ -77,58 +41,8 @@ export default function ChatroomList() {
         setLoading(false);
       }
     };
-
     fetchChatrooms();
   }, [user, navigate]);
-
-  const getPostData = async (postId) => {
-    if (!postId) return null;
-    
-    try {
-      // 嘗試從不同集合查詢貼文
-      const collections = [companionsCollection, couchesCollection, localsCollection];
-      for (const col of collections) {
-        const postDoc = await getDoc(doc(col, postId));
-        if (postDoc.exists()) {
-          return { id: postDoc.id, ...postDoc.data() };
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('獲取貼文資料失敗:', error);
-      return null;
-    }
-  };
-
-  const getUserData = async (userId) => {
-    if (!userId) return null;
-    
-    try {
-      const userDoc = await getDoc(doc(profilesCollection, userId));
-      if (userDoc.exists()) {
-        return userDoc.data();
-      }
-      return null;
-    } catch (error) {
-      console.error('獲取用戶資料失敗:', error);
-      return null;
-    }
-  };
-
-  const getLastMessage = async (chatroomId) => {
-    try {
-      const messagesRef = collection(doc(chatroomsCollection, chatroomId), 'messages');
-      const q = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        return snapshot.docs[0].data();
-      }
-      return null;
-    } catch (error) {
-      console.error('獲取最後訊息失敗:', error);
-      return null;
-    }
-  };
 
   const formatTime = (timestamp) => {
     if (!timestamp) return '';
@@ -140,8 +54,7 @@ export default function ChatroomList() {
   };
 
   const renderChatroomCard = (chatroom, isReceived = true) => {
-    const { postData, otherUserData, lastMessage } = chatroom;
-    
+    const lastMessage = chatroom.lastMessage;
     return (
       <div 
         key={chatroom.id}
@@ -151,24 +64,29 @@ export default function ChatroomList() {
         <div className="flex items-start space-x-3">
           {/* 用戶頭像 */}
           <div className="flex-shrink-0">
-            {otherUserData?.photos?.[0] ? (
-              <img 
-                src={otherUserData.photos[0]} 
-                alt="avatar" 
-                className="w-12 h-12 rounded-full object-cover"
-              />
+            {isReceived ? (
+              chatroom.applicantAvatar ? (
+                <img src={chatroom.applicantAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
+              ) : (
+                <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-gray-500" />
+                </div>
+              )
             ) : (
-              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-gray-500" />
-              </div>
+              chatroom.postOwnerAvatar ? (
+                <img src={chatroom.postOwnerAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
+              ) : (
+                <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-gray-500" />
+                </div>
+              )
             )}
           </div>
-
           {/* 聊天室資訊 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-gray-900 truncate">
-                {isReceived ? otherUserData?.displayName || '匿名用戶' : postData?.userName || '匿名用戶'}
+                {isReceived ? chatroom.applicantName || '匿名用戶' : chatroom.postOwnerName || '匿名用戶'}
               </h3>
               {lastMessage && (
                 <span className="text-xs text-gray-500">
@@ -176,11 +94,9 @@ export default function ChatroomList() {
                 </span>
               )}
             </div>
-            
             <p className="text-sm text-gray-600 mb-1 truncate">
-              {postData?.title || '無標題'}
+              {chatroom.postTitle || '無標題'}
             </p>
-            
             {lastMessage ? (
               <p className="text-sm text-gray-500 truncate">
                 {lastMessage.text}
