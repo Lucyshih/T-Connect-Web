@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import Navbar from '../../components/Navbar';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { MapPin, Calendar, Users, Compass, Home, Route, Plus, X } from 'lucide-react';
 import { companionsCollection } from '../../firebase.js';
@@ -251,17 +252,7 @@ const CompanionSearch = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div 
-            className="flex items-center space-x-2 cursor-pointer" 
-            onClick={() => navigate('/')}
-          >
-            <Compass className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">TravelConnect</span>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="max-w-4xl mx-auto mt-8 p-4">
         <div className="bg-white rounded-lg shadow-sm p-6">

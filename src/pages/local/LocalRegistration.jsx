@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import Navbar from '../../components/Navbar';
 import { localsCollection } from '../../firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
@@ -202,17 +203,8 @@ const LocalRegistration = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div 
-            className="flex items-center space-x-2 cursor-pointer" 
-            onClick={() => navigate('/')}
-          >
-            <Compass className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">TravelConnect</span>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
+      
       <div className="max-w-4xl mx-auto mt-8 p-4">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-6">

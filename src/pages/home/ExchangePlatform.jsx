@@ -5,6 +5,7 @@ import { MapPin, Users, Calendar, Home, Compass, UserCheck, MessageCircle } from
 import SearchBar from '../../components/SearchBar';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import Navbar from '../../components/Navbar';
 import { couchesCollection, companionsCollection, localsCollection } from '../../firebase';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import L from 'leaflet';
@@ -195,61 +196,7 @@ export default function ExchangePlatform() {
   return (
     <div className="relative h-screen">
       {/* 導航欄 */}
-      <nav className="bg-white shadow-sm p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div 
-            className="flex items-center space-x-2 cursor-pointer" 
-            onClick={() => navigate('/')}
-          >
-            <Compass className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">TravelConnect</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            {user ? (
-              <>
-                <button
-                  onClick={() => navigate('/profile')}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                  個人檔案
-                </button>
-                <button
-                  onClick={() => navigate('/chatrooms')}
-                  className="text-gray-600 hover:text-blue-600 flex items-center space-x-1"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>聊天室</span>
-                </button>
-                <button
-                  onClick={() => navigate('/host')}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                  提供住宿
-                </button>
-                <button
-                  onClick={() => navigate('/companion')}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                  尋找旅伴
-                </button>
-                <button
-                  onClick={() => navigate('/local')}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                  成為地陪
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="text-gray-600 hover:text-blue-600"
-              >
-                登入
-              </button>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* 主要內容區 */}
       <div className="max-w-7xl mx-auto p-4">

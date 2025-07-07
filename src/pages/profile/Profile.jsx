@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
+import Navbar from '../../components/Navbar';
 import { couchesCollection, companionsCollection, localsCollection, profilesCollection, storage, db } from '../../firebase';
 import { query, where, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -182,17 +183,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div 
-            className="flex items-center space-x-2 cursor-pointer" 
-            onClick={() => navigate('/')}
-          >
-            <Compass className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">TravelConnect</span>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="max-w-4xl mx-auto px-4">
         {/* 公開資料區域 */}

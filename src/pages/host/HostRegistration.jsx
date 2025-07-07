@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Upload, Plus, X, Home, Compass,Camera } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import Navbar from '../../components/Navbar';
 import { couchesCollection } from '../../firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
@@ -393,17 +394,7 @@ const HostRegistration = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div 
-            className="flex items-center space-x-2 cursor-pointer" 
-            onClick={() => navigate('/')}
-          >
-            <Compass className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold">TravelConnect</span>
-          </div>
-        </div>
-      </nav>
+       <Navbar />
 
       <div className="max-w-4xl mx-auto mt-8 p-4">
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6">

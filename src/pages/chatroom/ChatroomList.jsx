@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import Navbar from '../../components/Navbar';
 import { chatroomsCollection, companionsCollection, couchesCollection, localsCollection, profilesCollection } from '../../firebase';
 import { collection, query, where, getDocs, doc, getDoc, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { MessageCircle, User, MapPin, Calendar, Users } from 'lucide-react';
@@ -208,6 +209,7 @@ export default function ChatroomList() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
       {/* 頭部 */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">
