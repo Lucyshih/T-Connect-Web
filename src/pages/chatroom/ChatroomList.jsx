@@ -55,6 +55,8 @@ export default function ChatroomList() {
 
   const renderChatroomCard = (chatroom, isReceived = true) => {
     const lastMessage = chatroom.lastMessage;
+    // 決定對方 userId
+    const profileUserId = isReceived ? chatroom.applicantId : chatroom.postOwnerId;
     return (
       <div 
         key={chatroom.id}
@@ -63,10 +65,16 @@ export default function ChatroomList() {
       >
         <div className="flex items-start space-x-3">
           {/* 用戶頭像 */}
-          <div className="flex-shrink-0">
+          <div
+            className="flex-shrink-0 cursor-pointer group"
+            onClick={e => {
+              e.stopPropagation();
+              navigate(`/profile/${profileUserId}`);
+            }}
+          >
             {isReceived ? (
               chatroom.applicantAvatar ? (
-                <img src={chatroom.applicantAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover" />
+                <img src={chatroom.applicantAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover border-2 border-blue-200 group-hover:border-blue-500" />
               ) : (
                 <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                   <User className="w-6 h-6 text-gray-500" />
