@@ -10,6 +10,7 @@ import Signup from './pages/auth/Signup.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import Chatroom from './pages/chatroom/Chatroom.jsx';
 import ChatroomList from './pages/chatroom/ChatroomList.jsx';
+import PublicProfile from './pages/profile/PublicProfile.jsx';
 
 function App() {
   return (
@@ -73,6 +74,12 @@ function App() {
             <PrivateRoute>
               <Profile />
             </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile/:userId"
+          element={
+            <PublicProfile />
           }
         />
         <Route

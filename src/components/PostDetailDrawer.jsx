@@ -3,12 +3,14 @@ import { X, User, Mail, MapPin, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { chatroomsCollection, serverTimestamp, profilesCollection } from '../firebase';
 import { addDoc, doc as firestoreDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 
 const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const { user } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState('');
+  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
@@ -113,62 +115,24 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   };
 
   const renderUserProfile = () => {
+    const userId = post.userId;
+    const userName = post.userName || '匿名用戶';
+    const userAvatar = post.userAvatar || post.userPhoto || post.userProfilePhoto || '';
     return (
       <div className="mt-6 border-t border-gray-200 pt-6">
         <h3 className="text-lg font-semibold mb-4">發布者資料</h3>
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <User className="w-5 h-5 text-gray-500" />
-            <span>{post.userName || '匿名用戶'}</span>
-          </div>
-          {post.userEmail && (
-            <div className="flex items-center space-x-2">
-              <Mail className="w-5 h-5 text-gray-500" />
-              <span>{post.userEmail}</span>
+        <div
+          className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded"
+          onClick={() => navigate(`/profile/${userId}`)}
+        >
+          {userAvatar ? (
+            <img src={userAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover border" />
+          ) : (
+            <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+              <User className="w-6 h-6 text-gray-500" />
             </div>
           )}
-          {post.userLocation && (
-            <div className="flex items-center space-x-2">
-              <MapPin className="w-5 h-5 text-gray-500" />
-              <span>{post.userLocation}</span>
-            </div>
-          )}
-          {post.userBio && (
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-700 mb-2">關於我</h4>
-              <p className="text-gray-600 whitespace-pre-wrap">{post.userBio}</p>
-            </div>
-          )}
-          {post.userLanguages && (
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-700 mb-2">語言能力</h4>
-              <div className="flex flex-wrap gap-2">
-                {post.userLanguages.map((lang, index) => (
-                  <span 
-                    key={index}
-                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                  >
-                    {lang}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {post.userInterests && (
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-700 mb-2">興趣愛好</h4>
-              <div className="flex flex-wrap gap-2">
-                {post.userInterests.map((interest, index) => (
-                  <span 
-                    key={index}
-                    className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm"
-                  >
-                    {interest}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <span className="text-lg font-semibold text-blue-700 hover:underline">{userName}</span>
         </div>
       </div>
     );
