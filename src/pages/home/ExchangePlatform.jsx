@@ -312,8 +312,7 @@ export default function ExchangePlatform() {
                   <Popup>
                     <div className="p-2">
                       <h3 className="font-bold">{couch.title}</h3>
-                      <p className="text-sm text-gray-600">{couch.location}</p>
-                      <p className="text-sm">{couch.description}</p>
+                      <p className="text-sm">可容納{couch.capacity}人</p>
                       <p className="text-sm font-medium text-blue-600">
                         €{couch.pricePerNight}/晚
                       </p>
@@ -357,8 +356,6 @@ export default function ExchangePlatform() {
                           {new Date(companion.endDate.seconds * 1000).toLocaleDateString()}
                         </p>
                         <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
-                        <p className="text-sm">{companion.description}</p>
-                        <p className="text-sm text-gray-500">發布者：{companion.userName}</p>
                         <button
                         onClick={() => handleMarkerClick(companion, 'companion')}
                         className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
@@ -388,7 +385,6 @@ export default function ExchangePlatform() {
                           {new Date(local.endDate.seconds * 1000).toLocaleDateString()}
                         </p>
                       )}
-                      <p className="text-sm">{local.description}</p>
                       <button
                         onClick={() => handleMarkerClick(local, 'local')}
                         className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"

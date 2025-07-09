@@ -15,9 +15,7 @@ const LocalRegistration = () => {
   const [formData, setFormData] = useState({
     title: '',
     city: '',
-    languages: [],
     services: [],
-    price: '',
     description: '',
     startDate: '',
     endDate: '',
@@ -68,32 +66,6 @@ const LocalRegistration = () => {
       fetchLocalData();
     }
   }, [id, isEditing]);
-
-  // 添加語言選項
-  const addLanguage = () => {
-    setFormData(prev => ({
-      ...prev,
-      languages: [...prev.languages, '']
-    }));
-  };
-
-  // 更新語言
-  const updateLanguage = (index, value) => {
-    const newLanguages = [...formData.languages];
-    newLanguages[index] = value;
-    setFormData(prev => ({
-      ...prev,
-      languages: newLanguages
-    }));
-  };
-
-  // 刪除語言
-  const removeLanguage = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      languages: prev.languages.filter((_, i) => i !== index)
-    }));
-  };
 
   // 添加服務項目
   const addService = () => {
@@ -208,7 +180,7 @@ const LocalRegistration = () => {
       <div className="max-w-4xl mx-auto mt-8 p-4">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <h1 className="text-2xl font-bold mb-6">成為在地嚮導</h1>
+            <h1 className="text-2xl font-bold mb-6">成為地陪</h1>
 
             {/* 城市 */}
             <div>
@@ -225,51 +197,6 @@ const LocalRegistration = () => {
                   onChange={(e) => setFormData(prev => ({...prev, city: e.target.value}))}
                   required
                 />
-              </div>
-            </div>
-
-            {/* 語言 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                可提供服務的語言
-              </label>
-              <div className="space-y-3">
-                {formData.languages.map((language, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <div className="relative flex-1">
-                      <Globe className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-                      <input
-                        type="text"
-                        className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                        placeholder={`語言 ${index + 1}`}
-                        value={language}
-                        onChange={(e) => updateLanguage(index, e.target.value)}
-                        required
-                      />
-                    </div>
-                    {formData.languages.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          removeLanguage(index);
-                        }}
-                        className="p-2 text-gray-500 hover:text-red-500"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    addLanguage();
-                  }}
-                  className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>添加語言</span>
-                </button>
               </div>
             </div>
 
@@ -318,21 +245,6 @@ const LocalRegistration = () => {
               </div>
             </div>
 
-            {/* 價格 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                服務價格（€/小時）
-              </label>
-              <input
-                type="number"
-                min="0"
-                className="w-full px-4 py-2 border rounded-lg"
-                value={formData.price}
-                onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
-                required
-              />
-            </div>
-
             {/* 可服務時間 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -376,11 +288,11 @@ const LocalRegistration = () => {
             {/* 描述 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                自我介紹與服務描述
+                自我介紹
               </label>
               <textarea
                 className="w-full px-4 py-2 border rounded-lg h-32"
-                placeholder="請描述您的背景、專長和提供的服務..."
+                placeholder="請描述您的背景..."
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
                 required

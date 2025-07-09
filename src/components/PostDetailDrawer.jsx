@@ -70,7 +70,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">可接待人數</h3>
-                <p>{post.maxGuests} 人</p>
+                <p>{post.capacity} 人</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">每晚價格 (€)</h3>
@@ -119,16 +119,8 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
                 </p>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-700">語言</h3>
-                <p>{post.languages?.join('、')}</p>
-              </div>
-              <div>
                 <h3 className="font-semibold text-gray-700">服務項目</h3>
                 <p>{post.services?.join('、')}</p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">價格</h3>
-                <p>€{post.price}/小時</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">描述</h3>

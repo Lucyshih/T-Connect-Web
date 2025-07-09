@@ -19,7 +19,7 @@ const CompanionSearch = () => {
     companionCount: 1,
     description: '',
     budget: '', // 預算範圍
-    itinerary: [''] // 行程規劃，可以添加多天
+    itinerary: '' // 行程規劃，可以添加多天
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
