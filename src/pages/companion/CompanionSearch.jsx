@@ -365,48 +365,15 @@ const CompanionSearch = () => {
             {/* 行程規劃 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                初步行程規劃
+                行程規劃
               </label>
-              <div className="space-y-3">
-                {formData.itinerary.map((day, index) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Route className="w-5 h-5 text-gray-400" />
-                        <span className="text-sm text-gray-600">第 {index + 1} 天</span>
-                      </div>
-                      <textarea
-                        className="w-full px-4 py-2 border rounded-lg"
-                        rows="2"
-                        placeholder={`第 ${index + 1} 天的行程安排...`}
-                        value={day}
-                        onChange={(e) => updateItinerary(index, e.target.value)}
-                      />
-                    </div>
-                    {formData.itinerary.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          removeItineraryDay(index);
-                        }}
-                        className="p-2 text-gray-500 hover:text-red-500 mt-8"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    addItineraryDay();
-                  }}
-                  className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>添加行程</span>
-                </button>
-              </div>
+              <textarea
+                className="w-full px-4 py-2 border rounded-lg h-32"
+                placeholder="第一天..."
+                value={formData.itinerary}
+                onChange={(e) => setFormData(prev => ({...prev, itinerary: e.target.value}))}
+                required
+              />
             </div>
 
             {/* 補充說明 */}

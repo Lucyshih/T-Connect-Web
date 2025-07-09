@@ -35,11 +35,19 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">需要旅伴人數</h3>
-                <p>{post.companionsNeeded} 人</p>
+                <p>{post.companionCount} 人</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-700">描述</h3>
                 <p className="whitespace-pre-wrap">{post.description}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">預算範圍（€）</h3>
+                <p className="whitespace-pre-wrap">{post.budget}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">初步行程規劃</h3>
+                <p className="whitespace-pre-wrap">{post.itinerary}</p>
               </div>
             </div>
           </>
