@@ -49,10 +49,6 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
             <h2 className="text-xl font-bold mb-4">{post.title}</h2>
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-gray-700">位置</h3>
-                <p>{post.location}</p>
-              </div>
-              <div>
                 <h3 className="font-semibold text-gray-700">可接待時間</h3>
                 <div className="space-y-2">
                   {post.selectedRanges?.map((range, index) => (
@@ -68,8 +64,30 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
                 <p>{post.maxGuests} 人</p>
               </div>
               <div>
+                <h3 className="font-semibold text-gray-700">每晚價格 (€)</h3>
+                <p>{post.pricePerNight} €</p>
+              </div>
+              <div>
                 <h3 className="font-semibold text-gray-700">描述</h3>
                 <p className="whitespace-pre-wrap">{post.description}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">設施</h3>
+                <p className="whitespace-pre-wrap">{post.facilities?.join('、')}</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-700">照片</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {post.photos?.map((photo, index) => (
+                    <div key={index} className="relative aspect-square">
+                      <img 
+                        src={photo} 
+                        alt={`預覽${index + 1}`} 
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </>
