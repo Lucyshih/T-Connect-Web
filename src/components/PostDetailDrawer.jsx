@@ -10,6 +10,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState('');
+  const [previewImg, setPreviewImg] = React.useState(null);
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -83,7 +84,8 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
                       <img 
                         src={photo} 
                         alt={`預覽${index + 1}`} 
-                        className="w-full h-full object-cover rounded-lg"
+                        className="w-full h-full object-cover rounded-lg cursor-pointer"
+                        onClick={() => setPreviewImg(photo)}
                       />
                     </div>
                   ))}
@@ -258,6 +260,24 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
           </div>
         </div>
       </div>
+
+      {/* 照片預覽 Lightbox */}
+      {previewImg && (
+        <div className="fixed inset-0 z-[1100] bg-black bg-opacity-80 flex items-center justify-center" onClick={() => setPreviewImg(null)}>
+          <img
+            src={previewImg}
+            alt="放大預覽"
+            className="max-w-full max-h-[80vh] rounded-lg shadow-lg border-4 border-white"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-8 right-8 text-white bg-black bg-opacity-40 rounded-full p-2 hover:bg-opacity-70"
+            onClick={() => setPreviewImg(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

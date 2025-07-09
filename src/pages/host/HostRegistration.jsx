@@ -495,7 +495,7 @@ const HostRegistration = () => {
           {/* 照片上傳區域 */}
           <div className="mb-8">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              上傳住宿照片 (最多 5 張|僅接受jpg/png/jpeg格式)
+              上傳住宿照片 (最多 5 張 | 僅接受jpg/png/jpeg格式)
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {formData.photos?.map((photoUrl, index) => (
