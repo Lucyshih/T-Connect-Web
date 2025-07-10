@@ -137,7 +137,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const renderUserProfile = () => {
     const userId = post.userId;
     const userName = post.userName || '匿名用戶';
-    const userAvatar = post.userAvatar || post.userPhoto || post.userProfilePhoto || '';
+    const userAvatar = post.userAvatar || post.userphoto || post.userProfilePhoto || '';
     return (
       <div className="mt-6 border-t border-gray-200 pt-6">
         <h3 className="text-lg font-semibold mb-4">發布者資料</h3>

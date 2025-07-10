@@ -54,19 +54,11 @@ export default function PublicProfile() {
           )}
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{userData.displayName || '匿名用戶'}</h2>
-            {userData.email && (
-              <div className="flex items-center space-x-2 mt-1 text-gray-600">
-                <Mail className="w-4 h-4" />
-                <span>{userData.email}</span>
-              </div>
-            )}
-            {userData.nationality && (
-              <div className="flex items-center space-x-2 mt-1 text-gray-600">
-                <Globe className="w-4 h-4" />
-                <span>{userData.nationality}</span>
-              </div>
-            )}
           </div>
+        </div>
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-2">FB個人檔案連結</h3>
+          <p className="text-gray-700 whitespace-pre-wrap">{userData.nationality || '尚無FB個人檔案連結'}</p>
         </div>
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-2">自我介紹</h3>

@@ -38,7 +38,6 @@ export default function Profile() {
             displayName: user.displayName || '',
             email: user.email,
             nationality: '',
-            phone: '',
             bio: '',
             photos: [],
             createdAt: serverTimestamp()
@@ -243,24 +242,10 @@ export default function Profile() {
                   value={userData?.nationality || ''}
                   onChange={(e) => setUserData({ ...userData, nationality: e.target.value })}
                   className="border rounded-lg px-3 py-2"
-                  placeholder="國籍"
+                  placeholder="FB個人檔案連結"
                 />
               ) : (
                 <span className="text-gray-700">{userData?.nationality || '未設定'}</span>
-              )}
-            </div>
-            <div className="flex items-center space-x-4">
-              <Phone className="w-5 h-5 text-gray-500" />
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={userData?.phone || ''}
-                  onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
-                  className="border rounded-lg px-3 py-2"
-                  placeholder="電話"
-                />
-              ) : (
-                <span className="text-gray-700">{userData?.phone || '未設定'}</span>
               )}
             </div>
           </div>
