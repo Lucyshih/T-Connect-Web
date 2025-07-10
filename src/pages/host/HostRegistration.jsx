@@ -352,6 +352,7 @@ const HostRegistration = () => {
             updatedAt: serverTimestamp()
           });
           console.log('更新成功');
+          alert('地陪貼文更新成功！');
         } catch (updateError) {
           console.error('更新失敗:', updateError);
           throw updateError;
@@ -362,6 +363,7 @@ const HostRegistration = () => {
           const docRef = doc(couchesCollection);
           await setDoc(docRef, couchData);
           console.log('創建成功');
+          alert('地陪貼文發布成功！');
         } catch (createError) {
           console.error('創建失敗:', createError);
           throw createError;
@@ -545,12 +547,24 @@ const HostRegistration = () => {
           </div>
 
           {/* 提交按鈕 */}
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
-          >
-            提交
-          </button>
+          <div className="flex justify-end space-x-4">
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/');
+                }}
+                className="px-6 py-2 border rounded-lg"
+              >
+                取消
+              </button>
+              <button 
+                type="submit" 
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg"
+                disabled={loading}
+              >
+                {loading ? '提交中...' : '提交'}
+              </button>
+            </div>
         </form>
       </div>
     </div>
