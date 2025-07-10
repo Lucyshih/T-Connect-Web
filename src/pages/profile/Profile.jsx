@@ -374,51 +374,57 @@ export default function Profile() {
           </div>
 
           {/* 旅伴貼文 */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">我的旅伴貼文</h2>
-            {userPosts.companions.map(companion => (
-              <div key={companion.id} className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold">{companion.title}</h3>
-                    <p className="text-sm text-gray-600">
-                      目的地：{companion.destinations?.map(dest => dest.name).join('、')}
-                    </p>
-                    {companion.startDate && companion.endDate ? (
-                      <p className="text-sm text-gray-600">
-                        {new Date(companion.startDate.seconds * 1000).toLocaleDateString('zh-TW', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit'
-                        })} - 
-                        {new Date(companion.endDate.seconds * 1000).toLocaleDateString('zh-TW', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit'
-                        })}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-gray-600">未設定日期</p>
-                    )}
-                    <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-2">我的旅伴貼文</h3>
+            {userPosts.companions.length === 0 ? (
+              <p className="text-gray-500">尚未發布任何旅伴貼文</p>
+            ) : (
+              <div className="space-y-4">
+                {userPosts.companions.map(companion => (
+                  <div key={companion.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold">{companion.title}</h4>
+                        <p className="text-gray-600">
+                          目的地：{companion.destinations?.map(dest => dest.name).join('、')}
+                        </p>
+                        {companion.startDate && companion.endDate ? (
+                          <p className="text-sm text-gray-600">
+                            {new Date(companion.startDate.seconds * 1000).toLocaleDateString('zh-TW', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })} - 
+                            {new Date(companion.endDate.seconds * 1000).toLocaleDateString('zh-TW', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-600">未設定日期</p>
+                        )}
+                        <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
+                      </div>
+                      <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/local/${local.id}/edit`)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePost('locals', local.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => navigate(`/companion/${companion.id}/edit`)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      編輯
-                    </button>
-                    <button
-                      onClick={() => handleDeletePost('companions', companion.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      刪除
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
           {/* 地陪貼文 */}
