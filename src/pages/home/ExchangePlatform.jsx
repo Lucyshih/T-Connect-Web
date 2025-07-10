@@ -205,12 +205,12 @@ export default function ExchangePlatform() {
           <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                城市
+                城市或國家（英文）
               </label>
               <input
                 type="text"
                 className="w-full px-3 py-2 border rounded-lg"
-                placeholder="輸入城市名稱"
+                placeholder="只能輸入一個單字  例如：Paris"
                 value={searchParams.city}
                 onChange={(e) => setSearchParams(prev => ({ ...prev, city: e.target.value }))}
               />
@@ -268,7 +268,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('couch')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'couch' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'
+              activeFilter === 'couch' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-gray-600'
             }`}
           >
             沙發
@@ -276,7 +276,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('companion')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'companion' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'
+              activeFilter === 'companion' ? 'bg-green-600 text-white' : 'bg-green-200 text-gray-600'
             }`}
           >
             旅伴
@@ -284,7 +284,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('local')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'local' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'
+              activeFilter === 'local' ? 'bg-purple-600 text-white' : 'bg-purple-200 text-gray-600'
             }`}
           >
             地陪
