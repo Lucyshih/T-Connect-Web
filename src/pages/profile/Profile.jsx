@@ -338,7 +338,6 @@ export default function Profile() {
                   <div>
                     <h3 className="font-bold">{couch.title}</h3>
                     <p className="text-sm text-gray-600">{couch.location}</p>
-                    <p className="text-sm">{couch.description}</p>
                     <p className="text-sm font-medium text-blue-600">
                       €{couch.pricePerNight}/晚
                     </p>
@@ -402,7 +401,6 @@ export default function Profile() {
                       <p className="text-sm text-gray-600">未設定日期</p>
                     )}
                     <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
-                    <p className="text-sm">{companion.description}</p>
                   </div>
                   <div className="flex space-x-2">
                     <button
@@ -436,6 +434,22 @@ export default function Profile() {
                       <div>
                         <h4 className="font-semibold">{local.title}</h4>
                         <p className="text-gray-600">{local.city}</p>
+                        {local.startDate && local.endDate ? (
+                          <p className="text-sm text-gray-600">
+                            {new Date(local.startDate.seconds * 1000).toLocaleDateString('zh-TW', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })} - 
+                            {new Date(local.endDate.seconds * 1000).toLocaleDateString('zh-TW', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            })}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-600">未設定日期</p>
+                        )}
                       </div>
                       <div className="flex space-x-2">
                         <button
