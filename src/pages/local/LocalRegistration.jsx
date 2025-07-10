@@ -192,7 +192,7 @@ const LocalRegistration = () => {
                 <input
                   type="text"
                   className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                  placeholder="例如：巴黎"
+                  placeholder="請輸入英文地址，例如：Paris, France"
                   value={formData.city}
                   onChange={(e) => setFormData(prev => ({...prev, city: e.target.value}))}
                   required

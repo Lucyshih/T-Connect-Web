@@ -264,7 +264,7 @@ const CompanionSearch = () => {
             {/* 目的地 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                目的地
+                目的地 | 限定同一個國家
               </label>
               <div className="flex flex-col space-y-2">
                 {formData.destinations.map((destination, index) => (
@@ -274,7 +274,7 @@ const CompanionSearch = () => {
                       value={destination.name || ''}
                       onChange={(e) => updateDestination(index, e.target.value)}
                       className="flex-1 px-3 py-2 border rounded-lg"
-                      placeholder={`目的地 ${index + 1}`}
+                      placeholder="請輸入英文地址，例如：Paris, France"
                     />
                     {index > 0 && (
                       <button

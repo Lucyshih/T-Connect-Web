@@ -424,6 +424,7 @@ const HostRegistration = () => {
               <input
                 type="text"
                 value={formData.location}
+                placeholder="請輸入英文地址，例如：Paris, France"
                 onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-lg"
                 required
