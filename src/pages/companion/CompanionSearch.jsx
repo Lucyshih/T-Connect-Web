@@ -223,7 +223,7 @@ const CompanionSearch = () => {
             updatedAt: serverTimestamp()
           });
           console.log('更新成功');
-          alert('地陪貼文更新成功！');
+          alert('旅伴貼文更新成功！');
         } catch (updateError) {
           console.error('更新失敗:', updateError);
           throw updateError;
@@ -234,7 +234,7 @@ const CompanionSearch = () => {
           const docRef = doc(companionsCollection);
           await setDoc(docRef, companionData);
           console.log('創建成功');
-          alert('地陪貼文發布成功！');
+          alert('旅伴貼文發布成功！');
         } catch (createError) {
           console.error('創建失敗:', createError);
           throw createError;

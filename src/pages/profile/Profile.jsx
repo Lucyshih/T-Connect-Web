@@ -345,13 +345,13 @@ export default function Profile() {
                         </div>
                         <div className="flex space-x-2">
                               <button
-                                onClick={() => navigate(`/local/${local.id}/edit`)}
+                                onClick={() => navigate(`/couch/${couch.id}/edit`)}
                                 className="text-blue-600 hover:text-blue-800"
                               >
                                 <Edit2 className="w-5 h-5" />
                               </button>
                               <button
-                                onClick={() => handleDeletePost('locals', local.id)}
+                                onClick={() => handleDeletePost('couchs', couch.id)}
                                 className="text-red-600 hover:text-red-800"
                               >
                                 <Trash2 className="w-5 h-5" />
@@ -399,13 +399,13 @@ export default function Profile() {
                       </div>
                       <div className="flex space-x-2">
                             <button
-                              onClick={() => navigate(`/local/${local.id}/edit`)}
+                              onClick={() => navigate(`/companion/${companion.id}/edit`)}
                               className="text-blue-600 hover:text-blue-800"
                             >
                               <Edit2 className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => handleDeletePost('locals', local.id)}
+                              onClick={() => handleDeletePost('companions', companion.id)}
                               className="text-red-600 hover:text-red-800"
                             >
                               <Trash2 className="w-5 h-5" />
