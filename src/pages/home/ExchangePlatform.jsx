@@ -50,6 +50,48 @@ const localIcon = L.icon({
   shadowSize: [41, 41]
 });
 
+// 創建聚合圖標的函數
+const createClusterIcon = (type, count) => {
+  const colors = {
+    couch: '#3B82F6', // 藍色
+    companion: '#10B981', // 綠色
+    local: '#8B5CF6' // 紫色
+  };
+  
+  const icons = {
+    couch: '🏠',
+    companion: '👥',
+    local: '🎯'
+  };
+
+  return L.divIcon({
+    html: `
+      <div style="
+        background-color: ${colors[type]};
+        color: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      ">
+        <div style="text-align: center;">
+          <div style="font-size: 12px;">${icons[type]}</div>
+          <div style="font-size: 10px;">${count}</div>
+        </div>
+      </div>
+    `,
+    className: 'custom-cluster-icon',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  });
+};
+
 export default function ExchangePlatform() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -57,6 +99,7 @@ export default function ExchangePlatform() {
   const [couches, setCouches] = useState([]);
   const [companions, setCompanions] = useState([]);
   const [locals, setLocals] = useState([]);
+  const [clusteredData, setClusteredData] = useState({});
   const [searchParams, setSearchParams] = useState({
     city: '',
     startDate: '',
@@ -65,6 +108,71 @@ export default function ExchangePlatform() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // 聚合貼文函數
+  const clusterPosts = (couches, companions, locals) => {
+    const clusters = {};
+
+    // 處理沙發貼文
+    couches.forEach(couch => {
+      if (couch.coordinates?.lat && couch.coordinates?.lng) {
+        const roundedLat = Math.round(couch.coordinates.lat * 2) / 2;
+        const roundedLng = Math.round(couch.coordinates.lng * 2) / 2;
+        const gridKey = `${roundedLat},${roundedLng}`;
+        
+        if (!clusters[gridKey]) {
+          clusters[gridKey] = {
+            position: [roundedLat, roundedLng],
+            couches: [],
+            companions: [],
+            locals: []
+          };
+        }
+        clusters[gridKey].couches.push(couch);
+      }
+    });
+
+    // 處理旅伴貼文
+    companions.forEach(companion => {
+      const firstDestination = companion.destinations?.[0];
+      if (firstDestination?.coordinates?.lat && firstDestination?.coordinates?.lng) {
+        const roundedLat = Math.round(firstDestination.coordinates.lat * 2) / 2;
+        const roundedLng = Math.round(firstDestination.coordinates.lng * 2) / 2;
+        const gridKey = `${roundedLat},${roundedLng}`;
+        
+        if (!clusters[gridKey]) {
+          clusters[gridKey] = {
+            position: [roundedLat, roundedLng],
+            couches: [],
+            companions: [],
+            locals: []
+          };
+        }
+        clusters[gridKey].companions.push(companion);
+      }
+    });
+
+    // 處理地陪貼文
+    locals.forEach(local => {
+      if (local.coordinates?.lat && local.coordinates?.lng) {
+        const roundedLat = Math.round(local.coordinates.lat * 2) / 2;
+        const roundedLng = Math.round(local.coordinates.lng * 2) / 2;
+        const gridKey = `${roundedLat},${roundedLng}`;
+        
+        if (!clusters[gridKey]) {
+          clusters[gridKey] = {
+            position: [roundedLat, roundedLng],
+            couches: [],
+            companions: [],
+            locals: []
+          };
+        }
+        clusters[gridKey].locals.push(local);
+      }
+    });
+
+    return clusters;
+  };
 
   // 過濾貼文
   const filterPosts = (posts) => {
@@ -120,36 +228,13 @@ export default function ExchangePlatform() {
             (searchStart <= postEnd && searchEnd >= postStart)    // 搜索日期範圍與貼文日期範圍有重疊
           );
         }
-
-        // 添加調試日誌
-        console.log('過濾貼文:', {
-          postId: post.id,
-          type: post.selectedRanges ? 'couch' : (post.startDate ? 'companion/local' : 'unknown'),
-          cityMatch,
-          dateMatch,
-          searchParams,
-          postDates: post.selectedRanges ? 
-            post.selectedRanges.map(range => ({
-              start: new Date(range.start.seconds * 1000).toISOString(),
-              end: new Date(range.end.seconds * 1000).toISOString()
-            })) :
-            post.startDate ? {
-              start: new Date(post.startDate.seconds * 1000).toISOString(),
-              end: new Date(post.endDate.seconds * 1000).toISOString()
-            } : null,
-          rawDates: {
-            startDate: post.startDate,
-            endDate: post.endDate,
-            selectedRanges: post.selectedRanges
-          }
-        });
       }
 
       return cityMatch && dateMatch;
     });
   };
 
-  // 獲取所有貼文
+  // 獲取所有貼文並聚合
   useEffect(() => {
     const unsubscribeCouches = onSnapshot(couchesCollection, (snapshot) => {
       setCouches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -169,6 +254,16 @@ export default function ExchangePlatform() {
       unsubscribeLocals();
     };
   }, []);
+
+  // 當貼文資料更新時重新聚合
+  useEffect(() => {
+    const filteredCouches = filterPosts(couches);
+    const filteredCompanions = filterPosts(companions);
+    const filteredLocals = filterPosts(locals);
+    
+    const clusters = clusterPosts(filteredCouches, filteredCompanions, filteredLocals);
+    setClusteredData(clusters);
+  }, [couches, companions, locals, searchParams, isSearching]);
 
   // 處理搜索
   const handleSearch = (e) => {
@@ -302,100 +397,110 @@ export default function ExchangePlatform() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
-            {activeFilter === 'all' || activeFilter === 'couch' ? (
-              filterPosts(couches).map(couch => (
-                <Marker
-                  key={couch.id}
-                  position={couch.coordinates ? [couch.coordinates.lat, couch.coordinates.lng] : [0, 0]}
-                  icon={couchIcon}
-                >
-                  <Popup>
-                    <div className="p-2">
-                      <h3 className="font-bold">{couch.title}</h3>
-                      <p className="text-sm">可容納{couch.capacity}人</p>
-                      <p className="text-sm font-medium text-blue-600">
-                        €{couch.pricePerNight}/晚
-                      </p>
-                      <button
-                        onClick={() => handleMarkerClick(couch, 'couch')}
-                        className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                      >
-                        查看詳情
-                      </button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))
-            ) : null}
-            {activeFilter === 'all' || activeFilter === 'companion' ? (
-              filterPosts(companions).map(companion => {
-                // 檢查目的地和座標是否存在
-                const firstDestination = companion.destinations?.[0];
-                const coordinates = firstDestination?.coordinates;
-                
-                // 如果沒有有效的座標，跳過這個標記
-                if (!coordinates?.lat || !coordinates?.lng) {
-                  console.warn(`旅伴貼文 ${companion.id} 缺少有效的座標`);
-                  return null;
-                }
-
-                return (
+            {/* 渲染聚合的 markers */}
+            {Object.entries(clusteredData).map(([gridKey, cluster]) => {
+              const markers = [];
+              
+              // 沙發聚合
+              if (cluster.couches.length > 0 && (activeFilter === 'all' || activeFilter === 'couch')) {
+                markers.push(
                   <Marker
-                    key={companion.id}
-                    position={[coordinates.lat, coordinates.lng]}
-                    icon={companionIcon}
+                    key={`${gridKey}-couch`}
+                    position={[cluster.position[0] - 0.05, cluster.position[1] - 0.05]}
+                    icon={createClusterIcon('couch', cluster.couches.length)}
                   >
                     <Popup>
                       <div className="p-2">
-                        <h3 className="font-bold">{companion.title}</h3>
-                        <p className="text-sm text-gray-600">
-                          目的地：{companion.destinations?.map(dest => dest.name).join('、')}
-                        </p>
-                        <p className="text-sm">
-                          {new Date(companion.startDate.seconds * 1000).toLocaleDateString()} - 
-                          {new Date(companion.endDate.seconds * 1000).toLocaleDateString()}
-                        </p>
-                        <p className="text-sm">需要 {companion.companionCount} 位旅伴</p>
-                        <button
-                        onClick={() => handleMarkerClick(companion, 'companion')}
-                        className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                      >
-                        查看詳情
-                      </button>
+                        <h3 className="font-bold">沙發貼文 ({cluster.couches.length} 則)</h3>
+                        {cluster.couches.slice(0, 3).map(couch => (
+                          <div key={couch.id} className="mb-2 p-2 bg-gray-50 rounded">
+                            <p className="font-semibold">{couch.title}</p>
+                            <p className="text-sm text-gray-600">{couch.location}</p>
+                            <button
+                              onClick={() => handleMarkerClick(couch, 'couch')}
+                              className="mt-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                            >
+                              查看詳情
+                            </button>
+                          </div>
+                        ))}
+                        {cluster.couches.length > 3 && (
+                          <p className="text-sm text-gray-500">還有 {cluster.couches.length - 3} 則貼文...</p>
+                        )}
                       </div>
                     </Popup>
                   </Marker>
                 );
-              })
-            ) : null}
-            {activeFilter === 'all' || activeFilter === 'local' ? (
-              filterPosts(locals).map(local => (
-                <Marker
-                  key={local.id}
-                  position={local.coordinates ? [local.coordinates.lat, local.coordinates.lng] : [0, 0]}
-                  icon={localIcon}
-                >
-                  <Popup>
-                    <div className="p-2">
-                      <h3 className="font-bold">{local.title}</h3>
-                      <p className="text-sm text-gray-600">{local.city}</p>
-                      {local.startDate && local.endDate && (
-                        <p className="text-sm">
-                          {new Date(local.startDate.seconds * 1000).toLocaleDateString()} - 
-                          {new Date(local.endDate.seconds * 1000).toLocaleDateString()}
-                        </p>
-                      )}
-                      <button
-                        onClick={() => handleMarkerClick(local, 'local')}
-                        className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                      >
-                        查看詳情
-                      </button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))
-            ) : null}
+              }
+
+              // 旅伴聚合
+              if (cluster.companions.length > 0 && (activeFilter === 'all' || activeFilter === 'companion')) {
+                markers.push(
+                  <Marker
+                    key={`${gridKey}-companion`}
+                    position={[cluster.position[0] + 0.05, cluster.position[1] - 0.05]}
+                    icon={createClusterIcon('companion', cluster.companions.length)}
+                  >
+                    <Popup>
+                      <div className="p-2">
+                        <h3 className="font-bold">旅伴貼文 ({cluster.companions.length} 則)</h3>
+                        {cluster.companions.slice(0, 3).map(companion => (
+                          <div key={companion.id} className="mb-2 p-2 bg-gray-50 rounded">
+                            <p className="font-semibold">{companion.title}</p>
+                            <p className="text-sm text-gray-600">
+                              目的地：{companion.destinations?.map(dest => dest.name).join('、')}
+                            </p>
+                            <button
+                              onClick={() => handleMarkerClick(companion, 'companion')}
+                              className="mt-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                            >
+                              查看詳情
+                            </button>
+                          </div>
+                        ))}
+                        {cluster.companions.length > 3 && (
+                          <p className="text-sm text-gray-500">還有 {cluster.companions.length - 3} 則貼文...</p>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              }
+
+              // 地陪聚合
+              if (cluster.locals.length > 0 && (activeFilter === 'all' || activeFilter === 'local')) {
+                markers.push(
+                  <Marker
+                    key={`${gridKey}-local`}
+                    position={[cluster.position[0], cluster.position[1] + 0.05]}
+                    icon={createClusterIcon('local', cluster.locals.length)}
+                  >
+                    <Popup>
+                      <div className="p-2">
+                        <h3 className="font-bold">地陪貼文 ({cluster.locals.length} 則)</h3>
+                        {cluster.locals.slice(0, 3).map(local => (
+                          <div key={local.id} className="mb-2 p-2 bg-gray-50 rounded">
+                            <p className="font-semibold">{local.title}</p>
+                            <p className="text-sm text-gray-600">服務城市：{local.city}</p>
+                            <button
+                              onClick={() => handleMarkerClick(local, 'local')}
+                              className="mt-1 px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                            >
+                              查看詳情
+                            </button>
+                          </div>
+                        ))}
+                        {cluster.locals.length > 3 && (
+                          <p className="text-sm text-gray-500">還有 {cluster.locals.length - 3} 則貼文...</p>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              }
+
+              return markers;
+            })}
           </MapContainer>
         </div>
       </div>
