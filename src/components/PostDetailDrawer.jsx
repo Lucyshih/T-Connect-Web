@@ -13,6 +13,8 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const [previewImg, setPreviewImg] = React.useState(null);
   const navigate = useNavigate();
 
+  console.log('PostDetailDrawer props:', { isOpen, post, type });
+
   if (!isOpen) return null;
 
   const renderPostContent = () => {
@@ -207,7 +209,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[1000] overflow-hidden">
+    <div className="fixed inset-0 z-[20000] overflow-hidden">
       {/* 背景遮罩 */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -263,7 +265,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
 
       {/* 照片預覽 Lightbox */}
       {previewImg && (
-        <div className="fixed inset-0 z-[1100] bg-black bg-opacity-80 flex items-center justify-center" onClick={() => setPreviewImg(null)}>
+        <div className="fixed inset-0 z-[21000] bg-black bg-opacity-80 flex items-center justify-center" onClick={() => setPreviewImg(null)}>
           <img
             src={previewImg}
             alt="放大預覽"

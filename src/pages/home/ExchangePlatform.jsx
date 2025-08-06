@@ -115,6 +115,10 @@ export default function ExchangePlatform() {
   const [selectedPosts, setSelectedPosts] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  
+  // 新增：從 PostsListDrawer 開啟的 PostDetailDrawer 狀態
+  const [isDetailDrawerFromListOpen, setIsDetailDrawerFromListOpen] = useState(false);
+  const [selectedPostFromList, setSelectedPostFromList] = useState(null);
 
   // 聚合貼文函數
   const clusterPosts = (couches, companions, locals) => {
@@ -317,6 +321,13 @@ export default function ExchangePlatform() {
 
   // 修改：處理點擊聚合圖標
   const handleClusterClick = (posts, type, cluster) => {
+    // 先關閉 PostDetailDrawer（如果已開啟）
+    if (isDrawerOpen) {
+      setIsDrawerOpen(false);
+      setSelectedPost(null);
+    }
+    
+    // 然後開啟 PostsListDrawer
     setSelectedPosts(posts);
     setSelectedType(type);
     setSelectedLocation(getLocationName(cluster, type));
@@ -340,6 +351,21 @@ export default function ExchangePlatform() {
     setSelectedPosts([]);
     setSelectedLocation('');
     setSelectedType('');
+  };
+
+  // 新增：處理從 PostsListDrawer 中點擊貼文
+  const handlePostClickFromList = (post) => {
+    console.log('從 PostsListDrawer 點擊貼文:', post);
+    setSelectedPostFromList(post);
+    setIsDetailDrawerFromListOpen(true);
+    // 關閉 PostsListDrawer
+    handleClosePostsListDrawer();
+  };
+
+  // 新增：關閉從列表開啟的 PostDetailDrawer
+  const handleCloseDetailDrawerFromList = () => {
+    setIsDetailDrawerFromListOpen(false);
+    setSelectedPostFromList(null);
   };
 
   return (
@@ -594,6 +620,14 @@ export default function ExchangePlatform() {
         type={selectedPost?.type}
       />
 
+      {/* 添加從 PostsListDrawer 開啟的 PostDetailDrawer 組件 */}
+      <PostDetailDrawer
+        isOpen={isDetailDrawerFromListOpen}
+        onClose={handleCloseDetailDrawerFromList}
+        post={selectedPostFromList}
+        type={selectedPostFromList?.type}
+      />
+
       {/* 添加 PostsListDrawer 組件 */}
       <PostsListDrawer
         isOpen={isPostsListDrawerOpen}
@@ -602,6 +636,7 @@ export default function ExchangePlatform() {
         location={selectedLocation}
         type={selectedType}
         count={selectedPosts.length}
+        onPostClick={handlePostClickFromList}
       />
     </div>
   );
