@@ -11,6 +11,7 @@ import { collection, query, onSnapshot } from 'firebase/firestore';
 import L from 'leaflet';
 import { Icon } from 'leaflet';
 import PostDetailDrawer from '../../components/PostDetailDrawer';
+import PostsListDrawer from '../../components/PostsListDrawer';
 
 // 修復 Leaflet 圖標問題
 delete L.Icon.Default.prototype._getIconUrl;
@@ -108,6 +109,12 @@ export default function ExchangePlatform() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  // 新增 PostsListDrawer 相關狀態
+  const [isPostsListDrawerOpen, setIsPostsListDrawerOpen] = useState(false);
+  const [selectedPosts, setSelectedPosts] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedType, setSelectedType] = useState('');
 
   // 聚合貼文函數
   const clusterPosts = (couches, companions, locals) => {
@@ -278,6 +285,45 @@ export default function ExchangePlatform() {
     setIsSearching(false);
   };
 
+  // 新增：取得地點名稱的函數
+  const getLocationName = (cluster, type) => {
+    // 這裡可以根據經緯度反查地點名稱，或者使用貼文中的地點資訊
+    // 暫時使用第一個貼文的地點資訊
+    let locationName = '';
+    
+    switch (type) {
+      case 'couch':
+        if (cluster.couches.length > 0) {
+          locationName = cluster.couches[0].location || '未知地點';
+        }
+        break;
+      case 'companion':
+        if (cluster.companions.length > 0) {
+          const destinations = cluster.companions[0].destinations;
+          if (destinations && destinations.length > 0) {
+            locationName = destinations[0].name || '未知地點';
+          }
+        }
+        break;
+      case 'local':
+        if (cluster.locals.length > 0) {
+          locationName = cluster.locals[0].city || '未知地點';
+        }
+        break;
+    }
+    
+    return locationName;
+  };
+
+  // 修改：處理點擊聚合圖標
+  const handleClusterClick = (posts, type, cluster) => {
+    setSelectedPosts(posts);
+    setSelectedType(type);
+    setSelectedLocation(getLocationName(cluster, type));
+    setIsPostsListDrawerOpen(true);
+  };
+
+  // 保留原有的單一貼文點擊處理（用於 PostDetailDrawer）
   const handleMarkerClick = (post, type) => {
     setSelectedPost({ ...post, type });
     setIsDrawerOpen(true);
@@ -286,6 +332,14 @@ export default function ExchangePlatform() {
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setSelectedPost(null);
+  };
+
+  // 新增：關閉 PostsListDrawer
+  const handleClosePostsListDrawer = () => {
+    setIsPostsListDrawerOpen(false);
+    setSelectedPosts([]);
+    setSelectedLocation('');
+    setSelectedType('');
   };
 
   return (
@@ -408,6 +462,9 @@ export default function ExchangePlatform() {
                     key={`${gridKey}-couch`}
                     position={[cluster.position[0] - 0.05, cluster.position[1] - 0.05]}
                     icon={createClusterIcon('couch', cluster.couches.length)}
+                    eventHandlers={{
+                      click: () => handleClusterClick(cluster.couches, 'couch', cluster)
+                    }}
                   >
                     <Popup>
                       <div className="p-2">
@@ -427,6 +484,12 @@ export default function ExchangePlatform() {
                         {cluster.couches.length > 3 && (
                           <p className="text-sm text-gray-500">還有 {cluster.couches.length - 3} 則貼文...</p>
                         )}
+                        <button
+                          onClick={() => handleClusterClick(cluster.couches, 'couch', cluster)}
+                          className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                        >
+                          查看全部 {cluster.couches.length} 則貼文
+                        </button>
                       </div>
                     </Popup>
                   </Marker>
@@ -440,6 +503,9 @@ export default function ExchangePlatform() {
                     key={`${gridKey}-companion`}
                     position={[cluster.position[0] + 0.05, cluster.position[1] - 0.05]}
                     icon={createClusterIcon('companion', cluster.companions.length)}
+                    eventHandlers={{
+                      click: () => handleClusterClick(cluster.companions, 'companion', cluster)
+                    }}
                   >
                     <Popup>
                       <div className="p-2">
@@ -461,6 +527,12 @@ export default function ExchangePlatform() {
                         {cluster.companions.length > 3 && (
                           <p className="text-sm text-gray-500">還有 {cluster.companions.length - 3} 則貼文...</p>
                         )}
+                        <button
+                          onClick={() => handleClusterClick(cluster.companions, 'companion', cluster)}
+                          className="mt-2 w-full px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                        >
+                          查看全部 {cluster.companions.length} 則貼文
+                        </button>
                       </div>
                     </Popup>
                   </Marker>
@@ -474,6 +546,9 @@ export default function ExchangePlatform() {
                     key={`${gridKey}-local`}
                     position={[cluster.position[0], cluster.position[1] + 0.05]}
                     icon={createClusterIcon('local', cluster.locals.length)}
+                    eventHandlers={{
+                      click: () => handleClusterClick(cluster.locals, 'local', cluster)
+                    }}
                   >
                     <Popup>
                       <div className="p-2">
@@ -493,6 +568,12 @@ export default function ExchangePlatform() {
                         {cluster.locals.length > 3 && (
                           <p className="text-sm text-gray-500">還有 {cluster.locals.length - 3} 則貼文...</p>
                         )}
+                        <button
+                          onClick={() => handleClusterClick(cluster.locals, 'local', cluster)}
+                          className="mt-2 w-full px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+                        >
+                          查看全部 {cluster.locals.length} 則貼文
+                        </button>
                       </div>
                     </Popup>
                   </Marker>
@@ -511,6 +592,16 @@ export default function ExchangePlatform() {
         onClose={handleCloseDrawer}
         post={selectedPost}
         type={selectedPost?.type}
+      />
+
+      {/* 添加 PostsListDrawer 組件 */}
+      <PostsListDrawer
+        isOpen={isPostsListDrawerOpen}
+        onClose={handleClosePostsListDrawer}
+        posts={selectedPosts}
+        location={selectedLocation}
+        type={selectedType}
+        count={selectedPosts.length}
       />
     </div>
   );
