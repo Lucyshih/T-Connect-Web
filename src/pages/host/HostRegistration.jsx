@@ -312,7 +312,7 @@ const HostRegistration = () => {
       const coordinates = await geocodeAddress(formData.location);
       if (!coordinates) {
         console.log('無法獲取城市座標');
-        setError('無法找到該城市的座標，請確認城市名稱是否正確');
+        setError('無法獲取該城市的座標，請檢查城市名稱是否正確');
         setLoading(false);
         return;
       }
@@ -546,6 +546,13 @@ const HostRegistration = () => {
               setSelectedRanges={setSelectedRanges} 
             />
           </div>
+
+          {/* 錯誤訊息顯示 */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+              {error}
+            </div>
+          )}
 
           {/* 提交按鈕 */}
           <div className="flex justify-end space-x-4">

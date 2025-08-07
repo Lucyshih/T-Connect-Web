@@ -201,6 +201,18 @@ const CompanionSearch = () => {
       );
       console.log('所有目的地座標獲取完成');
 
+      // 檢查是否有目的地無法獲取座標
+      const invalidDestinations = destinationsWithCoordinates.filter(dest => 
+        !dest.coordinates || (dest.coordinates.lat === 0 && dest.coordinates.lng === 0)
+      );
+
+      if (invalidDestinations.length > 0) {
+        console.log('有目的地無法獲取座標:', invalidDestinations);
+        setError(`無法獲取以下目的地的座標，請檢查城市名稱是否正確：${invalidDestinations.map(dest => dest.name).join('、')}`);
+        setLoading(false);
+        return;
+      }
+
       const companionData = {
         ...formData,
         destinations: destinationsWithCoordinates,
@@ -391,6 +403,13 @@ const CompanionSearch = () => {
                 required
               />
             </div>
+
+            {/* 錯誤訊息顯示 */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+              </div>
+            )}
 
             {/* 按鈕 */}
             <div className="flex justify-end space-x-4">

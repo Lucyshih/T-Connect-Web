@@ -300,7 +300,7 @@ const LocalRegistration = () => {
             </div>
 
             {error && (
-              <div className="text-red-500 text-sm">{error}</div>
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
             )}
 
             {/* 按鈕 */}
