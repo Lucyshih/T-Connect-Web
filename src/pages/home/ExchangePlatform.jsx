@@ -12,6 +12,7 @@ import L from 'leaflet';
 import { Icon } from 'leaflet';
 import PostDetailDrawer from '../../components/PostDetailDrawer';
 import PostsListDrawer from '../../components/PostsListDrawer';
+import LocationPostListDrawer from '../../components/LocationPostListDrawer';
 
 // 修復 Leaflet 圖標問題
 delete L.Icon.Default.prototype._getIconUrl;
@@ -93,6 +94,36 @@ const createClusterIcon = (type, count) => {
   });
 };
 
+// 創建統一聚合圖標的函數（用於「全部」圖層）
+const createUnifiedClusterIcon = (count) => {
+  return L.divIcon({
+    html: `
+      <div style="
+        background-color:  #9CA3AF;
+        color: white;
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: bold;
+        border: 3px solid white;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+      ">
+        <div style="text-align: center;">
+          <div style="font-size: 14px;">📍</div>
+          <div style="font-size: 12px; margin-top: 2px;">${count}</div>
+        </div>
+      </div>
+    `,
+    className: 'unified-cluster-icon',
+    iconSize: [45, 45],
+    iconAnchor: [22, 22]
+  });
+};
+
 export default function ExchangePlatform() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -119,6 +150,11 @@ export default function ExchangePlatform() {
   // 新增：從 PostsListDrawer 開啟的 PostDetailDrawer 狀態
   const [isDetailDrawerFromListOpen, setIsDetailDrawerFromListOpen] = useState(false);
   const [selectedPostFromList, setSelectedPostFromList] = useState(null);
+  
+  // 新增：LocationPostListDrawer 相關狀態
+  const [isLocationPostListDrawerOpen, setIsLocationPostListDrawerOpen] = useState(false);
+  const [selectedLocationPosts, setSelectedLocationPosts] = useState([]);
+  const [selectedLocationName, setSelectedLocationName] = useState('');
 
   // 聚合貼文函數
   const clusterPosts = (couches, companions, locals) => {
@@ -127,8 +163,8 @@ export default function ExchangePlatform() {
     // 處理沙發貼文
     couches.forEach(couch => {
       if (couch.coordinates?.lat && couch.coordinates?.lng) {
-        const roundedLat = Math.round(couch.coordinates.lat * 2) / 2;
-        const roundedLng = Math.round(couch.coordinates.lng * 2) / 2;
+        const roundedLat = Math.round(couch.coordinates.lat * 10) / 10;
+        const roundedLng = Math.round(couch.coordinates.lng * 10) / 10;
         const gridKey = `${roundedLat},${roundedLng}`;
         
         if (!clusters[gridKey]) {
@@ -136,10 +172,15 @@ export default function ExchangePlatform() {
             position: [roundedLat, roundedLng],
             couches: [],
             companions: [],
-            locals: []
+            locals: [],
+            // 新增：統一聚合資料
+            location: couch.location || '未知地點',
+            coords: { lat: roundedLat, lng: roundedLng },
+            posts: []
           };
         }
         clusters[gridKey].couches.push(couch);
+        clusters[gridKey].posts.push({ ...couch, type: 'couch' });
       }
     });
 
@@ -147,8 +188,8 @@ export default function ExchangePlatform() {
     companions.forEach(companion => {
       const firstDestination = companion.destinations?.[0];
       if (firstDestination?.coordinates?.lat && firstDestination?.coordinates?.lng) {
-        const roundedLat = Math.round(firstDestination.coordinates.lat * 2) / 2;
-        const roundedLng = Math.round(firstDestination.coordinates.lng * 2) / 2;
+        const roundedLat = Math.round(firstDestination.coordinates.lat * 10) / 10;
+        const roundedLng = Math.round(firstDestination.coordinates.lng * 10) / 10;
         const gridKey = `${roundedLat},${roundedLng}`;
         
         if (!clusters[gridKey]) {
@@ -156,18 +197,23 @@ export default function ExchangePlatform() {
             position: [roundedLat, roundedLng],
             couches: [],
             companions: [],
-            locals: []
+            locals: [],
+            // 新增：統一聚合資料
+            location: firstDestination.name || '未知地點',
+            coords: { lat: roundedLat, lng: roundedLng },
+            posts: []
           };
         }
         clusters[gridKey].companions.push(companion);
+        clusters[gridKey].posts.push({ ...companion, type: 'companion' });
       }
     });
 
     // 處理地陪貼文
     locals.forEach(local => {
       if (local.coordinates?.lat && local.coordinates?.lng) {
-        const roundedLat = Math.round(local.coordinates.lat * 2) / 2;
-        const roundedLng = Math.round(local.coordinates.lng * 2) / 2;
+        const roundedLat = Math.round(local.coordinates.lat * 10) / 10;
+        const roundedLng = Math.round(local.coordinates.lng * 10) / 10;
         const gridKey = `${roundedLat},${roundedLng}`;
         
         if (!clusters[gridKey]) {
@@ -175,10 +221,15 @@ export default function ExchangePlatform() {
             position: [roundedLat, roundedLng],
             couches: [],
             companions: [],
-            locals: []
+            locals: [],
+            // 新增：統一聚合資料
+            location: local.city || '未知地點',
+            coords: { lat: roundedLat, lng: roundedLng },
+            posts: []
           };
         }
         clusters[gridKey].locals.push(local);
+        clusters[gridKey].posts.push({ ...local, type: 'local' });
       }
     });
 
@@ -334,6 +385,20 @@ export default function ExchangePlatform() {
     setIsPostsListDrawerOpen(true);
   };
 
+  // 新增：處理點擊「全部」聚合圖標
+  const handleUnifiedClusterClick = (cluster) => {
+    // 先關閉 PostDetailDrawer（如果已開啟）
+    if (isDrawerOpen) {
+      setIsDrawerOpen(false);
+      setSelectedPost(null);
+    }
+
+    // 然後開啟 LocationPostListDrawer
+    setSelectedLocationPosts(cluster.posts);
+    setSelectedLocationName(cluster.location);
+    setIsLocationPostListDrawerOpen(true);
+  };
+
   // 保留原有的單一貼文點擊處理（用於 PostDetailDrawer）
   const handleMarkerClick = (post, type) => {
     setSelectedPost({ ...post, type });
@@ -366,6 +431,22 @@ export default function ExchangePlatform() {
   const handleCloseDetailDrawerFromList = () => {
     setIsDetailDrawerFromListOpen(false);
     setSelectedPostFromList(null);
+  };
+
+  // 新增：關閉 LocationPostListDrawer
+  const handleCloseLocationPostListDrawer = () => {
+    setIsLocationPostListDrawerOpen(false);
+    setSelectedLocationPosts([]);
+    setSelectedLocationName('');
+  };
+
+  // 新增：處理從 LocationPostListDrawer 中點擊貼文
+  const handlePostClickFromLocation = (post) => {
+    console.log('從 LocationPostListDrawer 點擊貼文:', post);
+    setSelectedPostFromList(post);
+    setIsDetailDrawerFromListOpen(true);
+    // 關閉 LocationPostListDrawer
+    handleCloseLocationPostListDrawer();
   };
 
   return (
@@ -481,129 +562,68 @@ export default function ExchangePlatform() {
             {Object.entries(clusteredData).map(([gridKey, cluster]) => {
               const markers = [];
               
-              // 沙發聚合
-              if (cluster.couches.length > 0 && (activeFilter === 'all' || activeFilter === 'couch')) {
-                markers.push(
-                  <Marker
-                    key={`${gridKey}-couch`}
-                    position={[cluster.position[0] - 0.05, cluster.position[1] - 0.05]}
-                    icon={createClusterIcon('couch', cluster.couches.length)}
-                    eventHandlers={{
-                      click: () => handleClusterClick(cluster.couches, 'couch', cluster)
-                    }}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="font-bold">沙發貼文 ({cluster.couches.length} 則)</h3>
-                        {cluster.couches.slice(0, 3).map(couch => (
-                          <div key={couch.id} className="mb-2 p-2 bg-gray-50 rounded">
-                            <p className="font-semibold">{couch.title}</p>
-                            <p className="text-sm text-gray-600">{couch.location}</p>
-                            <button
-                              onClick={() => handleMarkerClick(couch, 'couch')}
-                              className="mt-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                            >
-                              查看詳情
-                            </button>
-                          </div>
-                        ))}
-                        {cluster.couches.length > 3 && (
-                          <p className="text-sm text-gray-500">還有 {cluster.couches.length - 3} 則貼文...</p>
-                        )}
-                        <button
-                          onClick={() => handleClusterClick(cluster.couches, 'couch', cluster)}
-                          className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                        >
-                          查看全部 {cluster.couches.length} 則貼文
-                        </button>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              }
+              if (activeFilter === 'all') {
+                // 「全部」圖層：顯示統一聚合圖標
+                const totalPosts = cluster.posts.length;
+                if (totalPosts > 0) {
+                  markers.push(
+                    <Marker
+                      key={`${gridKey}-unified`}
+                      position={[cluster.position[0], cluster.position[1]]}
+                      icon={createUnifiedClusterIcon(totalPosts)}
+                      eventHandlers={{
+                        click: () => handleUnifiedClusterClick(cluster)
+                      }}
+                    >
+                    </Marker>
+                  );
+                }
+              } else {
+                // 其他圖層：顯示分類聚合圖標
+                // 沙發聚合
+                if (cluster.couches.length > 0 && activeFilter === 'couch') {
+                  markers.push(
+                    <Marker
+                      key={`${gridKey}-couch`}
+                      position={[cluster.position[0],cluster.position[1]]}
+                      icon={createClusterIcon('couch', cluster.couches.length)}
+                      eventHandlers={{
+                        click: () => handleClusterClick(cluster.couches, 'couch', cluster)
+                      }}
+                    >
+                    </Marker>
+                  );
+                }
 
-              // 旅伴聚合
-              if (cluster.companions.length > 0 && (activeFilter === 'all' || activeFilter === 'companion')) {
-                markers.push(
-                  <Marker
-                    key={`${gridKey}-companion`}
-                    position={[cluster.position[0] + 0.05, cluster.position[1] - 0.05]}
-                    icon={createClusterIcon('companion', cluster.companions.length)}
-                    eventHandlers={{
-                      click: () => handleClusterClick(cluster.companions, 'companion', cluster)
-                    }}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="font-bold">旅伴貼文 ({cluster.companions.length} 則)</h3>
-                        {cluster.companions.slice(0, 3).map(companion => (
-                          <div key={companion.id} className="mb-2 p-2 bg-gray-50 rounded">
-                            <p className="font-semibold">{companion.title}</p>
-                            <p className="text-sm text-gray-600">
-                              目的地：{companion.destinations?.map(dest => dest.name).join('、')}
-                            </p>
-                            <button
-                              onClick={() => handleMarkerClick(companion, 'companion')}
-                              className="mt-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                            >
-                              查看詳情
-                            </button>
-                          </div>
-                        ))}
-                        {cluster.companions.length > 3 && (
-                          <p className="text-sm text-gray-500">還有 {cluster.companions.length - 3} 則貼文...</p>
-                        )}
-                        <button
-                          onClick={() => handleClusterClick(cluster.companions, 'companion', cluster)}
-                          className="mt-2 w-full px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                        >
-                          查看全部 {cluster.companions.length} 則貼文
-                        </button>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              }
+                // 旅伴聚合
+                if (cluster.companions.length > 0 && activeFilter === 'companion') {
+                  markers.push(
+                    <Marker
+                      key={`${gridKey}-companion`}
+                      position={[cluster.position[0], cluster.position[1]]}
+                      icon={createClusterIcon('companion', cluster.companions.length)}
+                      eventHandlers={{
+                        click: () => handleClusterClick(cluster.companions, 'companion', cluster)
+                      }}
+                    >
+                    </Marker>
+                  );
+                }
 
-              // 地陪聚合
-              if (cluster.locals.length > 0 && (activeFilter === 'all' || activeFilter === 'local')) {
-                markers.push(
-                  <Marker
-                    key={`${gridKey}-local`}
-                    position={[cluster.position[0], cluster.position[1] + 0.05]}
-                    icon={createClusterIcon('local', cluster.locals.length)}
-                    eventHandlers={{
-                      click: () => handleClusterClick(cluster.locals, 'local', cluster)
-                    }}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="font-bold">地陪貼文 ({cluster.locals.length} 則)</h3>
-                        {cluster.locals.slice(0, 3).map(local => (
-                          <div key={local.id} className="mb-2 p-2 bg-gray-50 rounded">
-                            <p className="font-semibold">{local.title}</p>
-                            <p className="text-sm text-gray-600">服務城市：{local.city}</p>
-                            <button
-                              onClick={() => handleMarkerClick(local, 'local')}
-                              className="mt-1 px-2 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
-                            >
-                              查看詳情
-                            </button>
-                          </div>
-                        ))}
-                        {cluster.locals.length > 3 && (
-                          <p className="text-sm text-gray-500">還有 {cluster.locals.length - 3} 則貼文...</p>
-                        )}
-                        <button
-                          onClick={() => handleClusterClick(cluster.locals, 'local', cluster)}
-                          className="mt-2 w-full px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
-                        >
-                          查看全部 {cluster.locals.length} 則貼文
-                        </button>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
+                // 地陪聚合
+                if (cluster.locals.length > 0 && activeFilter === 'local') {
+                  markers.push(
+                    <Marker
+                      key={`${gridKey}-local`}
+                      position={[cluster.position[0], cluster.position[1]]}
+                      icon={createClusterIcon('local', cluster.locals.length)}
+                      eventHandlers={{
+                        click: () => handleClusterClick(cluster.locals, 'local', cluster)
+                      }}
+                    >
+                    </Marker>
+                  );
+                }
               }
 
               return markers;
@@ -637,6 +657,15 @@ export default function ExchangePlatform() {
         type={selectedType}
         count={selectedPosts.length}
         onPostClick={handlePostClickFromList}
+      />
+
+      {/* 添加 LocationPostListDrawer 組件 */}
+      <LocationPostListDrawer
+        isOpen={isLocationPostListDrawerOpen}
+        onClose={handleCloseLocationPostListDrawer}
+        posts={selectedLocationPosts}
+        location={selectedLocationName}
+        onPostClick={handlePostClickFromLocation}
       />
     </div>
   );
