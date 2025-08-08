@@ -14,43 +14,6 @@ import PostDetailDrawer from '../../components/PostDetailDrawer';
 import PostsListDrawer from '../../components/PostsListDrawer';
 import LocationPostListDrawer from '../../components/LocationPostListDrawer';
 
-// 修復 Leaflet 圖標問題
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// 創建自定義沙發圖標
-const couchIcon = L.icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
-
-// 創建自定義找旅伴圖標
-const companionIcon = L.icon({
-  iconUrl: 'my-project/public/gps.png',
-  iconSize: [35, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
-
-// 創建自定義找地陪圖標
-const localIcon = L.icon({
-  iconUrl: 'my-project/public/pin-point.png',
-  iconSize: [35, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
 
 // 創建聚合圖標的函數
 const createClusterIcon = (type, count) => {
@@ -516,7 +479,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('all')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'
+              activeFilter === 'all' ? 'bg-gray-400 text-white' : 'bg-white text-gray-600'
             }`}
           >
             全部
@@ -524,7 +487,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('couch')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'couch' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-gray-600'
+              activeFilter === 'couch' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'
             }`}
           >
             沙發
@@ -532,7 +495,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('companion')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'companion' ? 'bg-green-600 text-white' : 'bg-green-200 text-gray-600'
+              activeFilter === 'companion' ? 'bg-green-600 text-white' : 'bg-white text-gray-600'
             }`}
           >
             旅伴
@@ -540,7 +503,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('local')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'local' ? 'bg-purple-600 text-white' : 'bg-purple-200 text-gray-600'
+              activeFilter === 'local' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600'
             }`}
           >
             地陪
