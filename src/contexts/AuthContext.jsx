@@ -5,7 +5,9 @@ import {
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -37,6 +39,18 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
+      return result;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  }
+
+  // Google 登入
+  async function loginWithGoogle() {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
       return result;
     } catch (error) {
       setError(error.message);
@@ -79,6 +93,7 @@ export function AuthProvider({ children }) {
     error,
     signup,
     login,
+    loginWithGoogle,
     logout,
     resetPassword,
     setError
