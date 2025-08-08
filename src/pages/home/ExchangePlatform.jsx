@@ -343,7 +343,7 @@ export default function ExchangePlatform() {
     
     // 然後開啟 PostsListDrawer
     setSelectedPosts(posts);
-    setSelectedType(type);
+    setSelectedType(type); // 設置為對應的類型（couch、companion、local）
     setSelectedLocation(getLocationName(cluster, type));
     setIsPostsListDrawerOpen(true);
   };
@@ -359,6 +359,7 @@ export default function ExchangePlatform() {
     // 然後開啟 LocationPostListDrawer
     setSelectedLocationPosts(cluster.posts);
     setSelectedLocationName(cluster.location);
+    setSelectedType('all'); // 設置為 'all' 表示從 LocationPostListDrawer 開啟
     setIsLocationPostListDrawerOpen(true);
   };
 
@@ -386,14 +387,24 @@ export default function ExchangePlatform() {
     console.log('從 PostsListDrawer 點擊貼文:', post);
     setSelectedPostFromList(post);
     setIsDetailDrawerFromListOpen(true);
-    // 關閉 PostsListDrawer
-    handleClosePostsListDrawer();
+    // 不要關閉 PostsListDrawer，讓它保持開啟狀態
+    // handleClosePostsListDrawer();
+    // 確保 selectedType 保持為對應的類型（couch、companion、local）
   };
 
   // 新增：關閉從列表開啟的 PostDetailDrawer
   const handleCloseDetailDrawerFromList = () => {
     setIsDetailDrawerFromListOpen(false);
     setSelectedPostFromList(null);
+    
+    // 重新開啟對應的列表 Drawer
+    if (selectedType === 'all') {
+      // 如果是從 LocationPostListDrawer 開啟的，重新開啟它
+      setIsLocationPostListDrawerOpen(true);
+    } else {
+      // 如果是從 PostsListDrawer 開啟的，重新開啟它
+      setIsPostsListDrawerOpen(true);
+    }
   };
 
   // 新增：關閉 LocationPostListDrawer
@@ -408,8 +419,10 @@ export default function ExchangePlatform() {
     console.log('從 LocationPostListDrawer 點擊貼文:', post);
     setSelectedPostFromList(post);
     setIsDetailDrawerFromListOpen(true);
-    // 關閉 LocationPostListDrawer
-    handleCloseLocationPostListDrawer();
+    // 不要關閉 LocationPostListDrawer，讓它保持開啟狀態
+    // handleCloseLocationPostListDrawer();
+    // 確保 selectedType 保持為 'all'
+    setSelectedType('all');
   };
 
   return (
