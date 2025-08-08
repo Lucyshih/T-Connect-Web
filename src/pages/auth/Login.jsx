@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Compass, Mail, Lock } from 'lucide-react';
+import { Compass, Mail, Lock, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, error, setError } = useAuth();
+  const { login, resetPassword, error, setError } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -24,6 +29,40 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    try {
+      setForgotPasswordError('');
+      setForgotPasswordSuccess('');
+      setForgotPasswordLoading(true);
+      
+      await resetPassword(forgotPasswordEmail);
+      setForgotPasswordSuccess('已發送重設密碼連結至您的信箱');
+      setForgotPasswordEmail('');
+      
+      // 3秒後自動關閉 Modal
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setForgotPasswordSuccess('');
+      }, 3000);
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        setForgotPasswordError('此信箱尚未註冊');
+      } else {
+        setForgotPasswordError('發送失敗：' + error.message);
+      }
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
+  const handleCloseForgotPassword = () => {
+    setShowForgotPassword(false);
+    setForgotPasswordEmail('');
+    setForgotPasswordError('');
+    setForgotPasswordSuccess('');
   };
 
   return (
@@ -81,6 +120,16 @@ const Login = () => {
               </div>
             </div>
 
+            <div className="flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-blue-600 hover:text-blue-500"
+              >
+                忘記密碼？
+              </button>
+            </div>
+
             <div>
               <button
                 type="submit"
@@ -115,6 +164,68 @@ const Login = () => {
           </div>
         </div>
       </div>
+
+      {/* 忘記密碼 Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">重設密碼</h3>
+              <button
+                onClick={handleCloseForgotPassword}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {forgotPasswordError && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                {forgotPasswordError}
+              </div>
+            )}
+
+            {forgotPasswordSuccess && (
+              <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+                {forgotPasswordSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  電子郵件
+                </label>
+                <input
+                  type="email"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="請輸入您的註冊信箱"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={handleCloseForgotPassword}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={forgotPasswordLoading}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {forgotPasswordLoading ? '發送中...' : '發送重設連結'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
