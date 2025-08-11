@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import Navbar from '../components/Navbar';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Compass, Send, CheckCircle } from 'lucide-react';
@@ -80,26 +81,7 @@ const Feedback = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 頭部 */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div 
-              className="flex items-center space-x-2 cursor-pointer"
-              onClick={handleBackToHome}
-            >
-              <Compass className="w-8 h-8 text-blue-600" />
-              <span className="text-xl font-bold">TravelConnect</span>
-            </div>
-            <button
-              onClick={handleBackToHome}
-              className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100"
-            >
-              返回首頁
-            </button>
-          </div>
-        </div>
-      </div>
+      <Navbar />
 
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* 頁面標題 */}
