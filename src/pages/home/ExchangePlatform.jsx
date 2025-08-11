@@ -62,7 +62,7 @@ const createUnifiedClusterIcon = (count) => {
   return L.divIcon({
     html: `
       <div style="
-        background-color:  #9CA3AF;
+        background-color: #FBBF24 ;
         color: white;
         border-radius: 50%;
         width: 45px;
@@ -492,7 +492,7 @@ export default function ExchangePlatform() {
           <button
             onClick={() => setActiveFilter('all')}
             className={`px-4 py-2 rounded-lg ${
-              activeFilter === 'all' ? 'bg-gray-400 text-white' : 'bg-white text-gray-600'
+              activeFilter === 'all' ? 'bg-yellow-400 text-white' : 'bg-white text-gray-600'
             }`}
           >
             全部

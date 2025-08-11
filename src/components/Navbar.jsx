@@ -15,7 +15,7 @@ export default function Navbar() {
           onClick={() => navigate('/')}
         >
           <Compass className="w-8 h-8 text-blue-600" />
-          <span className="text-xl font-bold">TravelConnect</span>
+          <span className="text-xl font-bold">T-Connect</span>
         </div>
         <div className="flex items-center space-x-4">
           {user ? (
