@@ -1,8 +1,8 @@
 // src/pages/Signup.js
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Compass, Mail, Lock, User } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { Compass, Mail, Lock, User, X } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 const Signup = () => {
   const navigate = useNavigate();

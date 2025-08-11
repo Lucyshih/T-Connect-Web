@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Compass, Mail, Lock, X } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuth } from '../../hooks/useAuth';
 
 const Login = () => {
   const navigate = useNavigate();

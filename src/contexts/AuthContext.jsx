@@ -16,7 +16,11 @@ const AuthContext = createContext();
 
 // 提供一個 hook 方便取得 Auth Context 的內容
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
 
 // AuthProvider 元件，包裝在應用程式最外層
@@ -79,3 +83,6 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
+// 導出 AuthContext 供其他文件使用
+export { AuthContext };

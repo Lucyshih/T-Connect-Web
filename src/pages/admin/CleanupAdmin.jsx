@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuth } from '../../hooks/useAuth';
 import Navbar from '../../components/Navbar';
 import { 
   frontendCleanupExpiredPosts, 
