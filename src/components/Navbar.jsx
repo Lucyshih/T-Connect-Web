@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Compass, MessageCircle } from 'lucide-react';
+import { Compass, MessageCircle, MessageSquare } from 'lucide-react';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -60,6 +60,15 @@ export default function Navbar() {
               登入
             </button>
           )}
+          
+          {/* 意見回饋連結 - 所有用戶都可以看到 */}
+          <button
+            onClick={() => navigate('/feedback')}
+            className="text-gray-600 hover:text-blue-600 flex items-center space-x-1"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>意見回饋</span>
+          </button>
         </div>
       </div>
     </nav>

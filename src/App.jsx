@@ -12,6 +12,7 @@ import Chatroom from './pages/chatroom/Chatroom.jsx';
 import ChatroomList from './pages/chatroom/ChatroomList.jsx';
 import PublicProfile from './pages/profile/PublicProfile.jsx';
 import CleanupAdmin from './pages/admin/CleanupAdmin.jsx';
+import Feedback from './pages/Feedback.jsx';
 import { useAutoCleanup } from './hooks/useAutoCleanup';
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
         <Route path="/" element={<ExchangePlatform />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/feedback" element={<Feedback />} />
         {/* 保護頁面：只有登入用戶才能進入 */}
         <Route
           path="/host"
