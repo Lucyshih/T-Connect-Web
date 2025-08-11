@@ -2,7 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';            // 確保你有 App.js 或 App.jsx
-import { AuthProvider } from './contexts/AuthContext'; // 你先前建立的 AuthContext
+import { AuthProvider } from './contexts/AuthContext.jsx'; // 你先前建立的 AuthContext
 import './index.css';        
        // 載入 Tailwind CSS
 const rootElement = document.getElementById('root');

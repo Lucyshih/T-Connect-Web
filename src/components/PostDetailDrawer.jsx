@@ -1,8 +1,9 @@
-import React from 'react';
-import { X, User, Mail, MapPin, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, MapPin, Calendar, Users, Compass, Euro } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { chatroomsCollection, serverTimestamp, profilesCollection } from '../firebase';
-import { addDoc, doc as firestoreDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { profilesCollection, chatroomsCollection, serverTimestamp } from '../firebase';
+import { getDoc, doc as firestoreDoc, addDoc, updateDoc } from 'firebase/firestore';
+import { smartOpenChatroom } from '../utils/chatUtils';
 import { useNavigate } from 'react-router-dom';
 
 const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
@@ -151,7 +152,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
             <img src={userAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover border" />
           ) : (
             <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-gray-500" />
+              <Users className="w-6 h-6 text-gray-500" />
             </div>
           )}
           <span className="text-lg font-semibold text-blue-700 hover:underline">{userName}</span>
@@ -166,43 +167,46 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
       setError('請先登入才能開啟聊天室');
       return;
     }
+    
     setLoading(true);
     setError('');
     setSuccess('');
+    
     try {
       // 取得貼文發布者資料
       const postOwnerId = post.userId;
       const postOwnerProfileDoc = await getDoc(firestoreDoc(profilesCollection, postOwnerId));
       const postOwnerProfile = postOwnerProfileDoc.exists() ? postOwnerProfileDoc.data() : {};
+      
       // 取得申請者資料
       const applicantProfileDoc = await getDoc(firestoreDoc(profilesCollection, user.uid));
       const applicantProfile = applicantProfileDoc.exists() ? applicantProfileDoc.data() : {};
-      // 建立聊天房，冗餘寫入必要資訊
-      const chatroomData = {
-        participants: [postOwnerId, user.uid],
-        postId: post.id || post.postId || '',
-        postTitle: post.title || '',
+      
+      // 使用智能聊天室功能
+      const result = await smartOpenChatroom(
+        post.id || post.postId || '',
+        type, // 'couch', 'companion', 'local'
         postOwnerId,
-        postOwnerName: postOwnerProfile.displayName || '',
-        postOwnerAvatar: postOwnerProfile.photos?.[0] || '',
-        applicantId: user.uid,
-        applicantName: applicantProfile.displayName || user.displayName || '',
-        applicantAvatar: applicantProfile.photos?.[0] || user.photoURL || '',
-        lastMessage: null,
-        createdAt: serverTimestamp(),
-      };
-      const chatroomRef = await addDoc(chatroomsCollection, chatroomData);
-      const chatroomId = chatroomRef.id;
-      // 更新聊天房，加入 chatroomId
-      await updateDoc(chatroomRef, { chatroomId });
-      setSuccess('聊天室已建立！');
-      setTimeout(() => {
-        setSuccess('');
-        onClose();
-        window.location.href = `/chatroom/${chatroomId}`;
-      }, 1000);
-    } catch (e) {
-      setError('建立聊天室失敗，請稍後再試');
+        user.uid,
+        postOwnerProfile,
+        applicantProfile,
+        post
+      );
+      
+      if (result.success) {
+        setSuccess(result.message);
+        setTimeout(() => {
+          setSuccess('');
+          onClose();
+          window.location.href = `/chatroom/${result.chatroomId}`;
+        }, 1000);
+      } else {
+        setError(result.message);
+      }
+      
+    } catch (error) {
+      console.error('開啟聊天室失敗:', error);
+      setError('開啟聊天室失敗，請稍後再試');
     } finally {
       setLoading(false);
     }

@@ -11,8 +11,25 @@ import PrivateRoute from './components/PrivateRoute.jsx';
 import Chatroom from './pages/chatroom/Chatroom.jsx';
 import ChatroomList from './pages/chatroom/ChatroomList.jsx';
 import PublicProfile from './pages/profile/PublicProfile.jsx';
+import CleanupAdmin from './pages/admin/CleanupAdmin.jsx';
+import { useAutoCleanup } from './hooks/useAutoCleanup';
 
 function App() {
+  // 啟用自動清理過期貼文
+  useAutoCleanup({
+    enabled: true,
+    autoRun: true,
+    showConsoleLogs: process.env.NODE_ENV === 'development',
+    onCleanupComplete: (result) => {
+      if (result.success && result.totalDeleted > 0) {
+        console.log(`自動清理完成，刪除了 ${result.totalDeleted} 個過期貼文`);
+      }
+    },
+    onCleanupError: (error) => {
+      console.error('自動清理失敗:', error);
+    }
+  });
+
   return (
     <BrowserRouter>
       <Routes>
@@ -97,6 +114,14 @@ function App() {
               <Chatroom />
             </PrivateRoute>
           } 
+        />
+        <Route
+          path="/admin/cleanup"
+          element={
+            <PrivateRoute>
+              <CleanupAdmin />
+            </PrivateRoute>
+          }
         />
       </Routes>
     </BrowserRouter>

@@ -1,107 +1,81 @@
+// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  updateProfile,
-  GoogleAuthProvider,
-  signInWithPopup
-} from 'firebase/auth';
 import { auth } from '../firebase';
+import { 
+  onAuthStateChanged, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut,
+  signInWithPopup,
+  GoogleAuthProvider,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 
+// 建立 Context
 const AuthContext = createContext();
 
+// 提供一個 hook 方便取得 Auth Context 的內容
 export function useAuth() {
   return useContext(AuthContext);
 }
 
+// AuthProvider 元件，包裝在應用程式最外層
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 註冊
-  async function signup(email, password, displayName) {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      // 設置用戶顯示名稱
-      await updateProfile(result.user, { displayName });
-      return result;
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // 登入
-  async function login(email, password) {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      return result;
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // Google 登入
-  async function loginWithGoogle() {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      return result;
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // 登出
-  async function logout() {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // 重設密碼
-  async function resetPassword(email) {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    }
-  }
-
-  // 監聽用戶狀態變化
+  // 監聽用戶登入狀態變化
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      setUser(user);
       setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 
+  // 註冊用戶
+  const signup = (email, password) => {
+    return createUserWithEmailAndPassword(auth, email, password);
+  };
+
+  // 登入用戶
+  const login = (email, password) => {
+    return signInWithEmailAndPassword(auth, email, password);
+  };
+
+  // Google 登入
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    return signInWithPopup(auth, provider);
+  };
+
+  // 重設密碼
+  const resetPassword = (email) => {
+    return sendPasswordResetEmail(auth, email);
+  };
+
+  // 登出用戶
+  const logout = () => {
+    return signOut(auth);
+  };
+
   const value = {
     user,
-    error,
     signup,
     login,
     loginWithGoogle,
-    logout,
     resetPassword,
-    setError
+    logout,
+    error,
+    setError,
+    setUser
   };
 
   return (
     <AuthContext.Provider value={value}>
+      {/* 等待 onAuthStateChanged 完成初次驗證 */}
       {!loading && children}
     </AuthContext.Provider>
   );
-} 
+}

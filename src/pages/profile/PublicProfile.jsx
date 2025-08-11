@@ -58,7 +58,18 @@ export default function PublicProfile() {
         </div>
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-2">FB個人檔案連結</h3>
-          <p className="text-gray-700 whitespace-pre-wrap">{userData.nationality || '尚無FB個人檔案連結'}</p>
+          {userData.nationality ? (
+            <a 
+              href={userData.nationality}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline hover:no-underline transition-colors duration-200"
+            >
+              {userData.nationality}
+            </a>
+          ) : (
+            <p className="text-gray-700">尚無FB個人檔案連結</p>
+          )}
         </div>
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-2">自我介紹</h3>
