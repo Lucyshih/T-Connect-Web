@@ -112,28 +112,47 @@ export const frontendCleanupExpiredPosts = async () => {
           snapshot = await getDocs(col.collection);
           console.log(`${col.name} 集合總文檔數:`, snapshot.size);
           
-          // 檢查是否有 endDate 欄位的文檔
-          let hasEndDateDocs = 0;
+          // 檢查是否有過期文檔
+          let hasExpiredDocs = 0;
           let expiredDocs = 0;
           
           snapshot.forEach(docSnapshot => {
             const post = docSnapshot.data();
-            if (post.endDate) {
-              hasEndDateDocs++;
-              const endDate = post.endDate?.toDate?.() || new Date(post.endDate);
-              if (endDate < europeTime) {
-                expiredDocs++;
-                console.log(`發現過期貼文:`, {
-                  id: docSnapshot.id,
-                  title: post.title || post.destination || "未命名",
-                  endDate: endDate.toISOString(),
-                  currentTime: europeTime.toISOString()
-                });
+            
+            if (col.type === 'couch') {
+              // 沙發貼文：檢查 selectedRanges
+              if (post.selectedRanges && Array.isArray(post.selectedRanges) && post.selectedRanges.length > 0) {
+                const lastRange = post.selectedRanges[post.selectedRanges.length - 1];
+                if (lastRange && lastRange.end) {
+                  const endDate = lastRange.end?.toDate?.() || new Date(lastRange.end.seconds * 1000);
+                  if (endDate < europeTime) {
+                    expiredDocs++;
+                    console.log(`發現過期沙發貼文:`, {
+                      id: docSnapshot.id,
+                      title: post.title || post.location || "未命名",
+                      lastRangeEnd: endDate.toISOString(),
+                      currentTime: europeTime.toISOString()
+                    });
+                  }
+                }
+              }
+            } else {
+              // 旅伴和地陪貼文：檢查 endDate
+              if (post.endDate) {
+                const endDate = post.endDate?.toDate?.() || new Date(post.endDate.seconds * 1000);
+                if (endDate < europeTime) {
+                  expiredDocs++;
+                  console.log(`發現過期貼文:`, {
+                    id: docSnapshot.id,
+                    title: post.title || post.destination || "未命名",
+                    endDate: endDate.toISOString(),
+                    currentTime: europeTime.toISOString()
+                  });
+                }
               }
             }
           });
           
-          console.log(`${col.name} 集合中有 endDate 的文檔: ${hasEndDateDocs}`);
           console.log(`${col.name} 集合中過期文檔: ${expiredDocs}`);
           
           if (expiredDocs === 0) {
@@ -146,11 +165,42 @@ export const frontendCleanupExpiredPosts = async () => {
           continue;
         }
         
-        // 現在執行過期查詢
+        // 現在執行過期查詢 - 根據貼文類型使用不同的查詢邏輯
         try {
-          const expiredSnapshot = await getDocs(
-            query(col.collection, where("endDate", "<", europeTime))
-          );
+          let expiredSnapshot;
+          
+          if (col.type === 'couch') {
+            // 沙發貼文：無法使用 where 查詢，需要手動過濾
+            const allDocs = await getDocs(col.collection);
+            const expiredDocs = [];
+            
+            allDocs.forEach(docSnapshot => {
+              const post = docSnapshot.data();
+              if (post.selectedRanges && Array.isArray(post.selectedRanges) && post.selectedRanges.length > 0) {
+                const lastRange = post.selectedRanges[post.selectedRanges.length - 1];
+                if (lastRange && lastRange.end) {
+                  const endDate = lastRange.end?.toDate?.() || new Date(lastRange.end.seconds * 1000);
+                  if (endDate < europeTime) {
+                    expiredDocs.push(docSnapshot);
+                  }
+                }
+              }
+            });
+            
+            // 創建一個模擬的 QuerySnapshot
+            expiredSnapshot = {
+              empty: expiredDocs.length === 0,
+              size: expiredDocs.length,
+              docs: expiredDocs,
+              forEach: (callback) => expiredDocs.forEach(callback)
+            };
+            
+          } else {
+            // 旅伴和地陪貼文：使用 where 查詢
+            expiredSnapshot = await getDocs(
+              query(col.collection, where("endDate", "<", europeTime))
+            );
+          }
           
           if (expiredSnapshot.empty) {
             console.log(`${col.name} 集合中沒有過期貼文（查詢結果）`);
@@ -299,32 +349,68 @@ export const filterExpiredPosts = (posts, collectionType) => {
 /**
  * 檢查貼文是否過期
  * @param {Object} post - 貼文物件
+ * @param {string} postType - 貼文類型 ('couch', 'companion', 'local')
  * @returns {boolean} 是否過期
  */
-export const isPostExpired = (post) => {
-  if (!post.endDate) {
-    return false; // 沒有 endDate 的貼文不算過期
-  }
-
-  const now = new Date();
-  const europeTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
-  
-  let endDate;
-  
-  // 處理 Firestore Timestamp 格式
-  if (post.endDate && typeof post.endDate.toDate === 'function') {
-    endDate = post.endDate.toDate();
-  } else if (post.endDate && post.endDate.seconds) {
-    endDate = new Date(post.endDate.seconds * 1000);
-  } else if (post.endDate instanceof Date) {
-    endDate = post.endDate;
-  } else if (typeof post.endDate === 'string') {
-    endDate = new Date(post.endDate);
+export const isPostExpired = (post, postType) => {
+  if (postType === 'couch') {
+    // 沙發貼文：檢查 selectedRanges 中最後一個區間的 end 時間
+    if (!post.selectedRanges || !Array.isArray(post.selectedRanges) || post.selectedRanges.length === 0) {
+      return false; // 沒有日期區間的沙發貼文不算過期
+    }
+    
+    // 找到最後一個區間的 end 時間
+    const lastRange = post.selectedRanges[post.selectedRanges.length - 1];
+    if (!lastRange || !lastRange.end) {
+      return false;
+    }
+    
+    const now = new Date();
+    const europeTime = new Date(now.getTime() + (2 * 60 * 60 * 1000)); // UTC+2
+    
+    let endDate;
+    
+    // 處理 Firestore Timestamp 格式
+    if (lastRange.end && typeof lastRange.end.toDate === 'function') {
+      endDate = lastRange.end.toDate();
+    } else if (lastRange.end && lastRange.end.seconds) {
+      endDate = new Date(lastRange.end.seconds * 1000);
+    } else if (lastRange.end instanceof Date) {
+      endDate = lastRange.end;
+    } else if (typeof lastRange.end === 'string') {
+      endDate = new Date(lastRange.end);
+    } else {
+      return false; // 無法解析的日期格式不算過期
+    }
+    
+    return endDate < europeTime;
+    
   } else {
-    return false; // 無法解析的日期格式不算過期
-  }
+    // 旅伴和地陪貼文：檢查 endDate 欄位
+    if (!post.endDate) {
+      return false; // 沒有 endDate 的貼文不算過期
+    }
 
-  return endDate < europeTime;
+    const now = new Date();
+    const europeTime = new Date(now.getTime() + (2 * 60 * 60 * 1000)); // UTC+2
+    
+    let endDate;
+    
+    // 處理 Firestore Timestamp 格式
+    if (post.endDate && typeof post.endDate.toDate === 'function') {
+      endDate = post.endDate.toDate();
+    } else if (post.endDate && post.endDate.seconds) {
+      endDate = new Date(post.endDate.seconds * 1000);
+    } else if (post.endDate instanceof Date) {
+      endDate = post.endDate;
+    } else if (typeof post.endDate === 'string') {
+      endDate = new Date(post.endDate);
+    } else {
+      return false; // 無法解析的日期格式不算過期
+    }
+
+    return endDate < europeTime;
+  }
 };
 
 /**
@@ -404,39 +490,69 @@ export const debugPostStructure = async () => {
           const post = docSnapshot.data();
           console.log(`\n文檔 ${count + 1}:`, {
             id: docSnapshot.id,
-            title: post.title || post.destination || "無標題",
-            endDate: post.endDate,
-            endDateType: typeof post.endDate,
-            hasToDate: post.endDate && typeof post.endDate.toDate === 'function',
-            hasSeconds: post.endDate && post.endDate.seconds,
-            createdAt: post.createdAt,
-            userId: post.userId
+            title: post.title || post.destination || post.location || "無標題",
+            type: col.type
           });
           
-          // 如果有 endDate，嘗試解析
-          if (post.endDate) {
-            try {
-              let parsedDate;
-              if (post.endDate && typeof post.endDate.toDate === 'function') {
-                parsedDate = post.endDate.toDate();
-              } else if (post.endDate && post.endDate.seconds) {
-                parsedDate = new Date(post.endDate.seconds * 1000);
-              } else if (post.endDate instanceof Date) {
-                parsedDate = post.endDate;
-              } else if (typeof post.endDate === 'string') {
-                parsedDate = new Date(post.endDate);
-              }
+          if (col.type === 'couch') {
+            // 沙發貼文：顯示 selectedRanges 信息
+            if (post.selectedRanges && Array.isArray(post.selectedRanges)) {
+              console.log(`  selectedRanges 數量: ${post.selectedRanges.length}`);
+              post.selectedRanges.forEach((range, index) => {
+                const startDate = range.start?.toDate?.() || new Date(range.start.seconds * 1000);
+                const endDate = range.end?.toDate?.() || new Date(range.end.seconds * 1000);
+                console.log(`  區間 ${index + 1}:`, {
+                  start: startDate.toISOString(),
+                  end: endDate.toISOString(),
+                  isExpired: endDate < new Date()
+                });
+              });
               
-              if (parsedDate && !isNaN(parsedDate.getTime())) {
-                console.log(`  解析後的 endDate:`, parsedDate.toISOString());
-                console.log(`  是否過期:`, parsedDate < new Date());
-              } else {
-                console.log(`  無法解析 endDate`);
+              // 檢查最後一個區間是否過期
+              if (post.selectedRanges.length > 0) {
+                const lastRange = post.selectedRanges[post.selectedRanges.length - 1];
+                const lastEndDate = lastRange.end?.toDate?.() || new Date(lastRange.end.seconds * 1000);
+                console.log(`  最後區間結束時間:`, lastEndDate.toISOString());
+                console.log(`  是否過期:`, lastEndDate < new Date());
               }
-            } catch (parseError) {
-              console.log(`  解析 endDate 時出錯:`, parseError.message);
+            } else {
+              console.log(`  沒有 selectedRanges 或格式不正確`);
+            }
+          } else {
+            // 旅伴和地陪貼文：顯示 endDate 信息
+            console.log(`  endDate:`, post.endDate);
+            console.log(`  endDateType:`, typeof post.endDate);
+            console.log(`  hasToDate:`, post.endDate && typeof post.endDate.toDate === 'function');
+            console.log(`  hasSeconds:`, post.endDate && post.endDate.seconds);
+            
+            // 如果有 endDate，嘗試解析
+            if (post.endDate) {
+              try {
+                let parsedDate;
+                if (post.endDate && typeof post.endDate.toDate === 'function') {
+                  parsedDate = post.endDate.toDate();
+                } else if (post.endDate && post.endDate.seconds) {
+                  parsedDate = new Date(post.endDate.seconds * 1000);
+                } else if (post.endDate instanceof Date) {
+                  parsedDate = post.endDate;
+                } else if (typeof post.endDate === 'string') {
+                  parsedDate = new Date(post.endDate);
+                }
+                
+                if (parsedDate && !isNaN(parsedDate.getTime())) {
+                  console.log(`  解析後的 endDate:`, parsedDate.toISOString());
+                  console.log(`  是否過期:`, parsedDate < new Date());
+                } else {
+                  console.log(`  無法解析 endDate`);
+                }
+              } catch (parseError) {
+                console.log(`  解析 endDate 時出錯:`, parseError.message);
+              }
             }
           }
+          
+          console.log(`  createdAt:`, post.createdAt);
+          console.log(`  userId:`, post.userId);
           
           count++;
         });
