@@ -48,10 +48,37 @@ exports.cleanupExpiredPosts = onSchedule({
       try {
         logger.info(`開始清理 ${collection.type} 貼文...`);
         
-        // 查詢所有 endDate 小於當前時間的貼文
-        const snapshot = await db.collection(collection.name)
-          .where("endDate", "<", europeTime)
-          .get();
+        let snapshot;
+        
+        if (collection.name === "couches") {
+          // 沙發貼文：檢查 selectedRanges 中的最後一個 end 日期
+          const allDocs = await db.collection(collection.name).get();
+          const expiredDocs = [];
+          
+          allDocs.forEach(doc => {
+            const post = doc.data();
+            if (post.selectedRanges && Array.isArray(post.selectedRanges) && post.selectedRanges.length > 0) {
+              const lastRange = post.selectedRanges[post.selectedRanges.length - 1];
+              if (lastRange && lastRange.end) {
+                const endDate = lastRange.end.toDate();
+                if (endDate < europeTime) {
+                  expiredDocs.push(doc);
+                }
+              }
+            }
+          });
+          
+          // 創建一個模擬的 snapshot
+          snapshot = {
+            empty: expiredDocs.length === 0,
+            forEach: (callback) => expiredDocs.forEach(callback)
+          };
+        } else {
+          // 旅伴和地陪貼文：使用 endDate 查詢
+          snapshot = await db.collection(collection.name)
+            .where("endDate", "<", europeTime)
+            .get();
+        }
         
         if (snapshot.empty) {
           logger.info(`${collection.type} 集合中沒有過期貼文`);
@@ -61,6 +88,7 @@ exports.cleanupExpiredPosts = onSchedule({
         // 批量刪除過期貼文
         const batch = db.batch();
         const expiredPosts = [];
+        const postIdsToDelete = [];
         
         snapshot.forEach(doc => {
           const post = doc.data();
@@ -70,13 +98,49 @@ exports.cleanupExpiredPosts = onSchedule({
             endDate: post.endDate?.toDate?.() || post.endDate
           });
           
+          // 收集貼文ID，用於後續刪除聊天室
+          postIdsToDelete.push(doc.id);
+          
           batch.delete(doc.ref);
         });
         
-        // 執行批量刪除
+        // 執行批量刪除貼文
         await batch.commit();
         
         logger.info(`成功刪除 ${expiredPosts.length} 個過期的 ${collection.type} 貼文:`, expiredPosts);
+        
+        // 刪除對應的聊天室
+        try {
+          logger.info(`開始刪除 ${expiredPosts.length} 個貼文對應的聊天室...`);
+          let totalChatroomsDeleted = 0;
+          
+          for (const postId of postIdsToDelete) {
+            // 查詢與此貼文相關的聊天室
+            const chatroomSnapshot = await db.collection('chatrooms')
+              .where('postId', '==', postId)
+              .get();
+            
+            if (!chatroomSnapshot.empty) {
+              logger.info(`貼文 ${postId} 有 ${chatroomSnapshot.size} 個相關聊天室，開始刪除...`);
+              
+              // 批量刪除聊天室
+              const chatroomBatch = db.batch();
+              chatroomSnapshot.forEach(doc => {
+                chatroomBatch.delete(doc.ref);
+              });
+              
+              await chatroomBatch.commit();
+              totalChatroomsDeleted += chatroomSnapshot.size;
+              logger.info(`貼文 ${postId} 的聊天室刪除成功`);
+            }
+          }
+          
+          logger.info(`成功刪除 ${totalChatroomsDeleted} 個相關聊天室`);
+        } catch (chatroomError) {
+          logger.error(`刪除聊天室時發生錯誤:`, chatroomError);
+          // 即使聊天室刪除失敗，也不影響貼文刪除的結果
+        }
+        
         totalDeleted += expiredPosts.length;
         
       } catch (error) {

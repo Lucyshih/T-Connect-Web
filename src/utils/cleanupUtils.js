@@ -15,7 +15,8 @@ import {
   couchesCollection, 
   companionsCollection, 
   localsCollection,
-  db
+  db,
+  chatroomsCollection
 } from '../firebase';
 
 /**
@@ -214,6 +215,9 @@ export const frontendCleanupExpiredPosts = async () => {
             const batch = writeBatch(db);
             const expiredPosts = [];
             
+            // 先收集所有要刪除的貼文ID，用於後續刪除聊天室
+            const postIdsToDelete = [];
+            
             expiredSnapshot.forEach(docSnapshot => {
               // 檢查文檔引用是否有效 - 簡化檢查邏輯
               if (!docSnapshot.ref) {
@@ -229,6 +233,9 @@ export const frontendCleanupExpiredPosts = async () => {
                 type: col.type
               });
               
+              // 收集貼文ID
+              postIdsToDelete.push(docSnapshot.id);
+              
               // 添加刪除操作到批次
               batch.delete(docSnapshot.ref);
             });
@@ -241,10 +248,45 @@ export const frontendCleanupExpiredPosts = async () => {
             
             console.log(`準備刪除 ${expiredPosts.length} 個過期貼文...`);
             
-            // 執行批量刪除
+            // 執行批量刪除貼文
             await batch.commit();
             
             console.log(`成功刪除 ${expiredPosts.length} 個過期的 ${col.name} 貼文:`, expiredPosts);
+            
+            // 刪除對應的聊天室
+            try {
+              console.log(`開始刪除 ${expiredPosts.length} 個貼文對應的聊天室...`);
+              let totalChatroomsDeleted = 0;
+              
+              for (const postId of postIdsToDelete) {
+                // 查詢與此貼文相關的聊天室
+                const chatroomQuery = query(
+                  chatroomsCollection,
+                  where('postId', '==', postId)
+                );
+                const chatroomSnapshot = await getDocs(chatroomQuery);
+                
+                if (!chatroomSnapshot.empty) {
+                  console.log(`貼文 ${postId} 有 ${chatroomSnapshot.size} 個相關聊天室，開始刪除...`);
+                  
+                  // 批量刪除聊天室
+                  const chatroomBatch = writeBatch(db);
+                  chatroomSnapshot.docs.forEach(doc => {
+                    chatroomBatch.delete(doc.ref);
+                  });
+                  
+                  await chatroomBatch.commit();
+                  totalChatroomsDeleted += chatroomSnapshot.size;
+                  console.log(`貼文 ${postId} 的聊天室刪除成功`);
+                }
+              }
+              
+              console.log(`成功刪除 ${totalChatroomsDeleted} 個相關聊天室`);
+            } catch (chatroomError) {
+              console.error(`刪除聊天室時發生錯誤:`, chatroomError);
+              // 即使聊天室刪除失敗，也不影響貼文刪除的結果
+            }
+            
             totalDeleted += expiredPosts.length;
             deletedPosts.push(...expiredPosts);
             

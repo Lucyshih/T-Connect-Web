@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
-import { couchesCollection, companionsCollection, localsCollection, profilesCollection, storage, db } from '../../firebase';
-import { query, where, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { couchesCollection, companionsCollection, localsCollection, profilesCollection, storage, db, chatroomsCollection } from '../../firebase';
+import { query, where, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { User, Mail, Phone, Globe, Edit2, Trash2, LogOut, Camera, Compass } from 'lucide-react';
 
@@ -135,15 +135,51 @@ export default function Profile() {
         return;
       }
 
+      console.log(`開始刪除 ${collection} 貼文:`, postId);
+
+      // 1. 先刪除對應的聊天室
+      try {
+        // 查詢所有與此貼文相關的聊天室
+        const chatroomQuery = query(
+          chatroomsCollection,
+          where('postId', '==', postId)
+        );
+        const chatroomSnapshot = await getDocs(chatroomQuery);
+        
+        if (!chatroomSnapshot.empty) {
+          console.log(`找到 ${chatroomSnapshot.size} 個相關聊天室，開始刪除...`);
+          
+          // 批量刪除聊天室
+          const batch = writeBatch(db);
+          chatroomSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+          });
+          
+          await batch.commit();
+          console.log('聊天室刪除成功');
+        } else {
+          console.log('沒有找到相關的聊天室');
+        }
+      } catch (chatroomError) {
+        console.error('刪除聊天室時發生錯誤:', chatroomError);
+        // 即使聊天室刪除失敗，也繼續刪除貼文
+      }
+
+      // 2. 刪除貼文
       await deleteDoc(doc(db, collection, postId));
+      console.log('貼文刪除成功');
       
-      // 更新狀態
+      // 3. 更新本地狀態
       setUserPosts(prev => ({
         ...prev,
         [collection]: prev[collection].filter(post => post.id !== postId)
       }));
+
+      console.log('貼文和相關聊天室刪除完成');
     } catch (error) {
       console.error('刪除貼文失敗:', error);
+      // 顯示錯誤訊息給用戶
+      alert(`刪除失敗: ${error.message}`);
     }
   };
 
