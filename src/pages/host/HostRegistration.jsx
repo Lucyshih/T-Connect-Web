@@ -456,6 +456,11 @@ const HostRegistration = () => {
                   type="number"
                   value={formData.capacity}
                   onChange={(e) => setFormData(prev => ({ ...prev, capacity: parseInt(e.target.value) }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full px-3 py-2 border rounded-lg"
                   min="1"
                   required
@@ -470,6 +475,11 @@ const HostRegistration = () => {
                   type="number"
                   value={formData.pricePerNight}
                   onChange={(e) => setFormData(prev => ({ ...prev, pricePerNight: parseFloat(e.target.value) }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full px-3 py-2 border rounded-lg"
                   min="0"
                   required

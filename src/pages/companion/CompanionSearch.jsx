@@ -357,6 +357,11 @@ const CompanionSearch = () => {
                   className="w-full pl-10 pr-4 py-2 border rounded-lg"
                   value={formData.companionCount}
                   onChange={(e) => setFormData(prev => ({...prev, companionCount: parseInt(e.target.value)}))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
+                  }}
                   required
                 />
               </div>
