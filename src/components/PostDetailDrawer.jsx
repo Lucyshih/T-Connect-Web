@@ -11,7 +11,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState('');
-  const [previewImg, setPreviewImg] = React.useState(null);
+  const [previewState, setPreviewState] = React.useState({ photos: [], currentIndex: 0, isOpen: false });
   const [publisherProfile, setPublisherProfile] = React.useState(null);
   const [publisherLoading, setPublisherLoading] = React.useState(true);
   const navigate = useNavigate();
@@ -47,6 +47,55 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
       fetchPublisherProfile();
     }
   }, [isOpen, post?.userId, fetchPublisherProfile]);
+
+  // 照片預覽導航功能
+  const goToPreviousPhoto = () => {
+    setPreviewState(prev => ({
+      ...prev,
+      currentIndex: prev.currentIndex === 0 ? prev.photos.length - 1 : prev.currentIndex - 1
+    }));
+  };
+
+  const goToNextPhoto = () => {
+    setPreviewState(prev => ({
+      ...prev,
+      currentIndex: prev.currentIndex === prev.photos.length - 1 ? 0 : prev.currentIndex + 1
+    }));
+  };
+
+  // 鍵盤事件處理
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!previewState.isOpen) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          goToPreviousPhoto();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          goToNextPhoto();
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setPreviewState(prev => ({ ...prev, isOpen: false }));
+          break;
+      }
+    };
+
+    if (previewState.isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // 禁止背景滾動
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      // 恢復背景滾動
+      document.body.style.overflow = 'unset';
+    };
+  }, [previewState.isOpen]);
 
   if (!isOpen) return null;
 
@@ -128,7 +177,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
                         src={photo} 
                         alt={`預覽${index + 1}`} 
                         className="w-full h-full object-cover rounded-lg cursor-pointer"
-                        onClick={() => setPreviewImg(photo)}
+                        onClick={() => setPreviewState({ photos: post.photos, currentIndex: index, isOpen: true })}
                       />
                     </div>
                   ))}
@@ -320,20 +369,86 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
       </div>
 
       {/* 照片預覽 Lightbox */}
-      {previewImg && (
-        <div className="fixed inset-0 z-[21000] bg-black bg-opacity-80 flex items-center justify-center" onClick={() => setPreviewImg(null)}>
-          <img
-            src={previewImg}
-            alt="放大預覽"
-            className="max-w-full max-h-[80vh] rounded-lg shadow-lg border-4 border-white"
-            onClick={e => e.stopPropagation()}
-          />
+      {previewState.isOpen && (
+        <div className="fixed inset-0 z-[21000] bg-black bg-opacity-90 flex items-center justify-center" onClick={() => setPreviewState(prev => ({ ...prev, isOpen: false }))}>
+          {/* 左箭頭按鈕 */}
           <button
-            className="absolute top-8 right-8 text-white bg-black bg-opacity-40 rounded-full p-2 hover:bg-opacity-70"
-            onClick={() => setPreviewImg(null)}
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPreviousPhoto();
+            }}
+            className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 text-white bg-black bg-opacity-40 rounded-full p-2 md:p-3 hover:bg-opacity-70 transition-all duration-200 z-10"
+            title="上一張照片 (←)"
           >
-            <X className="w-8 h-8" />
+            <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
+
+          {/* 右箭頭按鈕 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextPhoto();
+            }}
+            className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 text-white bg-black bg-opacity-40 rounded-full p-2 md:p-3 hover:bg-opacity-70 transition-all duration-200 z-10"
+            title="下一張照片 (→)"
+          >
+            <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* 照片計數顯示 */}
+          <div className="absolute top-4 md:top-8 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-40 px-3 md:px-4 py-1 md:py-2 rounded-full text-xs md:text-sm font-medium z-10">
+            {previewState.currentIndex + 1} / {previewState.photos.length}
+          </div>
+
+          {/* 關閉按鈕 */}
+          <button
+            className="absolute top-4 md:top-8 right-4 md:right-8 text-white bg-black bg-opacity-40 rounded-full p-1.5 md:p-2 hover:bg-opacity-70 transition-all duration-200 z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewState(prev => ({ ...prev, isOpen: false }));
+            }}
+            title="關閉預覽 (ESC)"
+          >
+            <X className="w-6 h-6 md:w-8 md:h-8" />
+          </button>
+
+          {/* 主照片容器 - 支援點擊導航 */}
+          <div className="relative flex-1 flex items-center justify-center mx-4">
+            {/* 左側點擊區域 - 上一張 */}
+            <div 
+              className="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-5"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPreviousPhoto();
+              }}
+            />
+            
+            {/* 右側點擊區域 - 下一張 */}
+            <div 
+              className="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-5"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNextPhoto();
+              }}
+            />
+
+            {/* 主照片 */}
+            <img
+              src={previewState.photos[previewState.currentIndex]}
+              alt={`照片 ${previewState.currentIndex + 1}`}
+              className="max-w-full max-h-[70vh] md:max-h-[80vh] rounded-lg shadow-lg border-2 md:border-4 border-white object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {/* 底部操作提示 - 在小屏幕上隱藏 */}
+          <div className="hidden md:block absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-40 px-4 py-2 rounded-full">
+            使用 ← → 鍵或點擊箭頭切換照片，按 ESC 關閉
+          </div>
         </div>
       )}
     </div>
