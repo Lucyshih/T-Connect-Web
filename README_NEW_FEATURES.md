@@ -100,7 +100,7 @@ export const checkExistingApplication = async (userId, postId, postType) => {
 
 ##### 重複聊天室檢查
 ```javascript
-export const checkExistingChatroom = async (user1Id, user2Id) => {
+export const checkExistingChatroom = async (user1Id, user2Id, postId) => {
   // 查詢兩位用戶之間是否已存在聊天室
   const chatroomQuery = query(
     chatroomsCollection,

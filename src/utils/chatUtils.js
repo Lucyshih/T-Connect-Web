@@ -63,17 +63,19 @@ export const checkExistingApplication = async (userId, postId, postType) => {
 };
 
 /**
- * 檢查兩位用戶之間是否已存在聊天室
+ * 檢查兩位用戶之間是否已存在特定貼文的聊天室
  * @param {string} user1Id - 用戶1 ID
  * @param {string} user2Id - 用戶2 ID
+ * @param {string} postId - 貼文ID
  * @returns {Promise<Object>} 檢查結果 {exists: boolean, chatroom: Object|null}
  */
-export const checkExistingChatroom = async (user1Id, user2Id) => {
+export const checkExistingChatroom = async (user1Id, user2Id, postId) => {
   try {
-    // 查詢是否已存在聊天室（兩位用戶都是參與者）
+    // 查詢是否已存在聊天室（兩位用戶都是參與者，且貼文ID相同）
     const chatroomQuery = query(
       chatroomsCollection,
-      where('participants', 'array-contains', user1Id)
+      where('participants', 'array-contains', user1Id),
+      where('postId', '==', postId)
     );
     
     const chatroomSnapshot = await getDocs(chatroomQuery);
@@ -112,10 +114,11 @@ export const checkExistingChatroom = async (user1Id, user2Id) => {
  */
 export const createChatroom = async (chatroomData) => {
   try {
-    // 先檢查是否已存在聊天室
+    // 先檢查是否已存在聊天室（同時檢查 participants 和 postId）
     const existingCheck = await checkExistingChatroom(
       chatroomData.participants[0], 
-      chatroomData.participants[1]
+      chatroomData.participants[1],
+      chatroomData.postId
     );
     
     if (existingCheck.exists) {
@@ -171,7 +174,7 @@ export const smartOpenChatroom = async (
   postData
 ) => {
   try {
-    // 1. 檢查是否已經申請過
+    // 1. 檢查是否已經申請過（同時檢查 participants 和 postId）
     const applicationCheck = await checkExistingApplication(applicantId, postId, postType);
     
     if (applicationCheck.hasApplied) {
@@ -184,17 +187,11 @@ export const smartOpenChatroom = async (
       };
     }
     
-    // 2. 檢查是否已存在聊天室
-    const chatroomCheck = await checkExistingChatroom(postOwnerId, applicantId);
+    // 2. 檢查是否已存在聊天室（同時檢查 participants 和 postId）
+    const chatroomCheck = await checkExistingChatroom(postOwnerId, applicantId, postId);
     
     if (chatroomCheck.exists) {
-      // 如果已存在聊天室，更新貼文ID並返回
-      await updateDoc(doc(chatroomsCollection, chatroomCheck.chatroom.id), {
-        postId: postId,
-        postTitle: postData.title || postData.destination || '無標題',
-        postType: postType
-      });
-      
+      // 如果已存在聊天室，直接返回（不需要更新，因為 postId 已經相同）
       return {
         success: true,
         chatroomId: chatroomCheck.chatroom.id,
