@@ -22,67 +22,114 @@ export default function ChatroomList() {
       setError('');
       
       console.log('開始獲取聊天室列表...');
+      const startTime = Date.now();
       
       // 查詢所有包含當前用戶的聊天室
       const chatroomsQuery = query(chatroomsCollection, where('participants', 'array-contains', user.uid));
       const chatroomsSnapshot = await getDocs(chatroomsQuery);
       
-      console.log(`找到 ${chatroomsSnapshot.size} 個聊天室`);
+      console.log(`找到 ${chatroomsSnapshot.size} 個聊天室，耗時: ${Date.now() - startTime}ms`);
       
-      const chatrooms = [];
-      
-      // 驗證每個聊天室對應的貼文是否仍然存在
-      for (const docSnapshot of chatroomsSnapshot.docs) {
-        const chatroom = {
-          id: docSnapshot.id,
-          ...docSnapshot.data()
-        };
-        
-        try {
-          // 檢查對應的貼文是否仍然存在
-          let postExists = false;
-          let postData = null;
-          
-          if (chatroom.postType === 'couch') {
-            const postDoc = await getDoc(doc(couchesCollection, chatroom.postId));
-            postExists = postDoc.exists();
-            postData = postDoc.exists() ? postDoc.data() : null;
-          } else if (chatroom.postType === 'companion') {
-            const postDoc = await getDoc(doc(companionsCollection, chatroom.postId));
-            postExists = postDoc.exists();
-            postData = postDoc.exists() ? postDoc.data() : null;
-          } else if (chatroom.postType === 'local') {
-            const postDoc = await getDoc(doc(localsCollection, chatroom.postId));
-            postExists = postDoc.exists();
-            postData = postDoc.exists() ? postDoc.data() : null;
-          }
-          
-          if (postExists && postData) {
-            // 更新聊天室信息，確保貼文標題是最新的
-            chatroom.postTitle = postData.title || postData.destination || postData.location || '無標題';
-            chatrooms.push(chatroom);
-            console.log(`聊天室 ${chatroom.id} 對應的貼文存在:`, chatroom.postTitle);
-          } else {
-            console.log(`聊天室 ${chatroom.id} 對應的貼文不存在，跳過`);
-            // 這裡可以選擇自動刪除無效的聊天室
-            // 但為了安全起見，我們先只是過濾掉
-          }
-        } catch (postCheckError) {
-          console.error(`檢查聊天室 ${chatroom.id} 對應貼文時發生錯誤:`, postCheckError);
-          // 如果檢查失敗，為了安全起見，我們保留這個聊天室
-          chatrooms.push(chatroom);
-        }
+      if (chatroomsSnapshot.empty) {
+        setReceivedChatrooms([]);
+        setSentChatrooms([]);
+        setLoading(false);
+        return;
       }
       
-      console.log(`有效聊天室數量: ${chatrooms.length}`);
+      // 收集所有需要驗證的貼文ID，按類型分組
+      const postIdsByType = {
+        couch: [],
+        companion: [],
+        local: []
+      };
+      
+      const chatrooms = chatroomsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // 分類貼文ID
+      chatrooms.forEach(chatroom => {
+        if (chatroom.postId && chatroom.postType && postIdsByType[chatroom.postType]) {
+          postIdsByType[chatroom.postType].push(chatroom.postId);
+        }
+      });
+      
+      console.log(`需要驗證的貼文: 沙發=${postIdsByType.couch.length}, 旅伴=${postIdsByType.companion.length}, 地陪=${postIdsByType.local.length}`);
+      
+      // 批量查詢所有貼文，使用 Promise.all 並行處理
+      const postQueryStartTime = Date.now();
+      const [couchPosts, companionPosts, localPosts] = await Promise.all([
+        // 批量查詢沙發貼文
+        postIdsByType.couch.length > 0 
+          ? getDocs(query(couchesCollection, where('__name__', 'in', postIdsByType.couch)))
+          : Promise.resolve({ docs: [] }),
+        
+        // 批量查詢旅伴貼文
+        postIdsByType.companion.length > 0 
+          ? getDocs(query(companionsCollection, where('__name__', 'in', postIdsByType.companion)))
+          : Promise.resolve({ docs: [] }),
+        
+        // 批量查詢地陪貼文
+        postIdsByType.local.length > 0 
+          ? getDocs(query(localsCollection, where('__name__', 'in', postIdsByType.local)))
+          : Promise.resolve({ docs: [] })
+      ]);
+      
+      console.log(`批量查詢完成，耗時: ${Date.now() - postQueryStartTime}ms`);
+      
+      // 創建貼文查找映射
+      const postMap = new Map();
+      
+      // 處理沙發貼文
+      couchPosts.docs.forEach(doc => {
+        postMap.set(doc.id, { type: 'couch', data: doc.data() });
+      });
+      
+      // 處理旅伴貼文
+      companionPosts.docs.forEach(doc => {
+        postMap.set(doc.id, { type: 'companion', data: doc.data() });
+      });
+      
+      // 處理地陪貼文
+      localPosts.docs.forEach(doc => {
+        postMap.set(doc.id, { type: 'local', data: doc.data() });
+      });
+      
+      console.log(`批量查詢完成，找到 ${postMap.size} 個有效貼文`);
+      
+      // 過濾和更新聊天室
+      const validChatrooms = chatrooms.filter(chatroom => {
+        if (!chatroom.postId || !chatroom.postType) {
+          console.log(`聊天室 ${chatroom.id} 缺少 postId 或 postType，跳過`);
+          return false;
+        }
+        
+        const postInfo = postMap.get(chatroom.postId);
+        if (!postInfo) {
+          console.log(`聊天室 ${chatroom.id} 對應的貼文不存在，跳過`);
+          return false;
+        }
+        
+        // 更新聊天室信息
+        const postData = postInfo.data;
+        chatroom.postTitle = postData.title || postData.destination || postData.location || '無標題';
+        
+        return true;
+      });
+      
+      console.log(`有效聊天室數量: ${validChatrooms.length}`);
       
       // 分類聊天室
-      const received = chatrooms.filter(room => room.postOwnerId === user.uid);
-      const sent = chatrooms.filter(room => room.applicantId === user.uid);
+      const received = validChatrooms.filter(room => room.postOwnerId === user.uid);
+      const sent = validChatrooms.filter(room => room.applicantId === user.uid);
       
       setReceivedChatrooms(received);
       setSentChatrooms(sent);
       
+      const totalTime = Date.now() - startTime;
+      console.log(`聊天室列表載入完成，總耗時: ${totalTime}ms`);
       console.log(`收到的聊天室: ${received.length}, 發送的聊天室: ${sent.length}`);
       
     } catch (error) {
@@ -130,8 +177,20 @@ export default function ChatroomList() {
   // 頁面焦點監聽 - 當用戶從其他頁面返回時自動刷新
   useEffect(() => {
     const handleFocus = () => {
-      console.log('頁面重新獲得焦點，自動刷新聊天室列表');
-      fetchChatrooms();
+      // 只有在聊天室列表為空或距離上次刷新超過1分鐘時才自動刷新
+      const lastRefreshTime = localStorage.getItem('chatroomLastRefresh');
+      const now = Date.now();
+      const shouldRefresh = !lastRefreshTime || 
+                           (now - parseInt(lastRefreshTime)) > 60000 || // 1分鐘
+                           (receivedChatrooms.length === 0 && sentChatrooms.length === 0);
+      
+      if (shouldRefresh) {
+        console.log('頁面重新獲得焦點，自動刷新聊天室列表');
+        localStorage.setItem('chatroomLastRefresh', now.toString());
+        fetchChatrooms();
+      } else {
+        console.log('頁面重新獲得焦點，但距離上次刷新時間較短，跳過自動刷新');
+      }
     };
 
     window.addEventListener('focus', handleFocus);
@@ -139,16 +198,17 @@ export default function ChatroomList() {
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
-  }, [user]);
+  }, [user, receivedChatrooms.length, sentChatrooms.length]);
 
-  // 定期刷新聊天室列表（每5分鐘）
+  // 定期刷新聊天室列表（每10分鐘，而不是5分鐘）
   useEffect(() => {
     if (!user) return;
     
     const interval = setInterval(() => {
       console.log('定期刷新聊天室列表');
+      localStorage.setItem('chatroomLastRefresh', Date.now().toString());
       fetchChatrooms();
-    }, 5 * 60 * 1000); // 5分鐘
+    }, 10 * 60 * 1000); // 10分鐘
     
     return () => clearInterval(interval);
   }, [user]);
@@ -252,23 +312,6 @@ export default function ChatroomList() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">聊天室</h1>
             <div className="flex space-x-3">
-              <button
-                onClick={handleCleanupInvalidChatrooms}
-                disabled={refreshing}
-                className="flex items-center space-x-2 px-3 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="清理對應貼文已被刪除的聊天室"
-              >
-                <AlertCircle className="w-4 h-4" />
-                <span>{refreshing ? '處理中...' : '清理無效'}</span>
-              </button>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                <span>{refreshing ? '刷新中...' : '刷新'}</span>
-              </button>
             </div>
           </div>
         </div>
