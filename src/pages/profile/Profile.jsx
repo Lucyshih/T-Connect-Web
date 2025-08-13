@@ -6,6 +6,7 @@ import { couchesCollection, companionsCollection, localsCollection, profilesColl
 import { query, where, getDocs, deleteDoc, doc, getDoc, setDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { User, Mail, Phone, Globe, Edit2, Trash2, LogOut, Camera, Compass } from 'lucide-react';
+import { updateProfile } from 'firebase/auth';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -20,95 +21,113 @@ export default function Profile() {
     locals: []
   });
 
+  // 獲取用戶資料
+  const fetchUserData = async () => {
+    try {
+      console.log('開始獲取用戶資料...');
+      
+      const userDoc = await getDoc(doc(profilesCollection, user.uid));
+      if (userDoc.exists()) {
+        const existingData = userDoc.data();
+        console.log('現有用戶資料:', existingData);
+        
+        // 優先使用 Firebase Auth 中的 displayName，如果 profilesCollection 中沒有或為空
+        const authDisplayName = user.displayName || '';
+        const storedDisplayName = existingData.displayName || '';
+        const finalDisplayName = authDisplayName || storedDisplayName || '';
+        
+        console.log(`displayName 比較: Auth=${authDisplayName}, Stored=${storedDisplayName}, Final=${finalDisplayName}`);
+        
+        const updatedData = {
+          ...existingData,
+          displayName: finalDisplayName
+        };
+        
+        // 只有在 displayName 確實不同且不為空時才更新
+        if (finalDisplayName && finalDisplayName !== storedDisplayName) {
+          console.log('displayName 需要同步，更新 profilesCollection...');
+          await updateDoc(doc(profilesCollection, user.uid), {
+            displayName: finalDisplayName
+          });
+          console.log('displayName 同步完成');
+        }
+        
+        setUserData(updatedData);
+        console.log('設置用戶資料:', updatedData);
+      } else {
+        // 如果用戶資料不存在，創建一個新的
+        console.log('用戶資料不存在，創建新資料...');
+        const newUserData = {
+          displayName: user.displayName || '',
+          email: user.email,
+          nationality: '',
+          bio: '',
+          photos: [],
+          createdAt: serverTimestamp()
+        };
+        await setDoc(doc(profilesCollection, user.uid), newUserData);
+        setUserData(newUserData);
+        console.log('新用戶資料創建完成:', newUserData);
+      }
+    } catch (error) {
+      console.error('獲取用戶資料失敗:', error);
+      // 顯示錯誤訊息給用戶
+      alert(`獲取用戶資料失敗: ${error.message}`);
+    }
+  };
+
+  // 獲取用戶發布的內容
+  const fetchUserPosts = async () => {
+    try {
+      console.log('開始獲取用戶貼文，用戶ID:', user.uid);
+      
+      // 獲取沙發貼文
+      const couchQuery = query(couchesCollection, where('userId', '==', user.uid));
+      const couchSnapshot = await getDocs(couchQuery);
+      const couchPosts = couchSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log('沙發貼文數量:', couchPosts.length, '貼文:', couchPosts);
+
+      // 獲取旅伴貼文
+      const companionQuery = query(companionsCollection, where('userId', '==', user.uid));
+      const companionSnapshot = await getDocs(companionQuery);
+      const companionPosts = companionSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log('旅伴貼文數量:', companionPosts.length, '貼文:', companionPosts);
+
+      // 獲取地陪貼文
+      const localQuery = query(localsCollection, where('userId', '==', user.uid));
+      const localSnapshot = await getDocs(localQuery);
+      const localPosts = localSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      console.log('地陪貼文數量:', localPosts.length, '貼文:', localPosts);
+
+      const newUserPosts = {
+        couches: couchPosts,
+        companions: companionPosts,
+        locals: localPosts
+      };
+      
+      console.log('設置 userPosts:', newUserPosts);
+      setUserPosts(newUserPosts);
+    } catch (error) {
+      console.error('獲取用戶貼文失敗:', error);
+      // 顯示錯誤訊息給用戶
+      alert(`獲取用戶貼文失敗: ${error.message}`);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
       return;
     }
-
-    // 獲取用戶資料
-    const fetchUserData = async () => {
-      try {
-        const userDoc = await getDoc(doc(profilesCollection, user.uid));
-        if (userDoc.exists()) {
-          const existingData = userDoc.data();
-          // 優先使用 Firebase Auth 中的 displayName，如果 profilesCollection 中沒有或為空
-          const displayName = user.displayName || existingData.displayName || '';
-          const updatedData = {
-            ...existingData,
-            displayName: displayName
-          };
-          
-          // 如果 displayName 有更新，同步到 profilesCollection
-          if (displayName !== existingData.displayName) {
-            await updateDoc(doc(profilesCollection, user.uid), {
-              displayName: displayName
-            });
-          }
-          
-          setUserData(updatedData);
-        } else {
-          // 如果用戶資料不存在，創建一個新的
-          const newUserData = {
-            displayName: user.displayName || '',
-            email: user.email,
-            nationality: '',
-            bio: '',
-            photos: [],
-            createdAt: serverTimestamp()
-          };
-          await setDoc(doc(profilesCollection, user.uid), newUserData);
-          setUserData(newUserData);
-        }
-      } catch (error) {
-        console.error('獲取用戶資料失敗:', error);
-      }
-    };
-
-    // 獲取用戶發布的內容
-    const fetchUserPosts = async () => {
-      try {
-        console.log('開始獲取用戶貼文，用戶ID:', user.uid);
-        
-        // 獲取沙發貼文
-        const couchQuery = query(couchesCollection, where('userId', '==', user.uid));
-        const couchSnapshot = await getDocs(couchQuery);
-        const couchPosts = couchSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log('沙發貼文數量:', couchPosts.length, '貼文:', couchPosts);
-
-        // 獲取旅伴貼文
-        const companionQuery = query(companionsCollection, where('userId', '==', user.uid));
-        const companionSnapshot = await getDocs(companionQuery);
-        const companionPosts = companionSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log('旅伴貼文數量:', companionPosts.length, '貼文:', companionPosts);
-
-        // 獲取地陪貼文
-        const localQuery = query(localsCollection, where('userId', '==', user.uid));
-        const localSnapshot = await getDocs(localQuery);
-        const localPosts = localSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        console.log('地陪貼文數量:', localPosts.length, '貼文:', localPosts);
-
-        const newUserPosts = {
-          couches: couchPosts,
-          companions: companionPosts,
-          locals: localPosts
-        };
-        
-        console.log('設置 userPosts:', newUserPosts);
-        setUserPosts(newUserPosts);
-      } catch (error) {
-        console.error('獲取用戶貼文失敗:', error);
-      }
-    };
 
     fetchUserData();
     fetchUserPosts();
@@ -117,13 +136,45 @@ export default function Profile() {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
+      console.log('開始更新用戶資料:', userData);
+      
+      // 更新 Firestore 中的用戶資料
       await updateDoc(doc(profilesCollection, user.uid), {
         ...userData,
         updatedAt: serverTimestamp()
       });
+      
+      console.log('用戶資料更新成功');
+      
+      // 同時更新 Firebase Auth 中的 displayName（如果有的話）
+      if (userData.displayName && userData.displayName !== user.displayName) {
+        try {
+          await updateProfile(user, {
+            displayName: userData.displayName
+          });
+          console.log('Firebase Auth displayName 更新成功');
+        } catch (authUpdateError) {
+          console.warn('Firebase Auth displayName 更新失敗:', authUpdateError);
+          // 這不是致命錯誤，繼續執行
+        }
+      }
+      
+      // 重新獲取最新的用戶資料
+      const updatedUserDoc = await getDoc(doc(profilesCollection, user.uid));
+      if (updatedUserDoc.exists()) {
+        const updatedData = updatedUserDoc.data();
+        setUserData(updatedData);
+        console.log('本地狀態已更新為最新資料:', updatedData);
+      }
+      
       setIsEditing(false);
+      
+      // 顯示成功訊息
+      alert('個人資料更新成功！');
+      
     } catch (error) {
       console.error('更新用戶資料失敗:', error);
+      alert(`更新失敗: ${error.message}`);
     }
   };
 
@@ -255,30 +306,37 @@ export default function Profile() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">個人資料</h2>
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-              >
-                <Edit2 className="w-5 h-5" />
-                <span>編輯資料</span>
-              </button>
-            ) : (
-              <div className="flex space-x-2">
+            <div className="flex items-center space-x-2">
+              {/* 資料同步狀態 */}
+              {!isEditing ? (
                 <button
-                  onClick={handleUpdateProfile}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  onClick={() => setIsEditing(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
                 >
-                  儲存
+                  <Edit2 className="w-5 h-5" />
+                  <span>編輯資料</span>
                 </button>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                >
-                  取消
-                </button>
-              </div>
-            )}
+              ) : (
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleUpdateProfile}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    儲存
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      // 強制重新獲取資料
+                      fetchUserData();
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    取消
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
