@@ -93,6 +93,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
             {currentMonth.map((date, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={(e) => handleDateClick(date, e)}
                 className={`
                   aspect-square p-2 rounded-lg text-sm
@@ -122,6 +123,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
             {nextMonth.map((date, index) => (
               <button
                 key={index}
+                type="button"
                 onClick={(e) => handleDateClick(date, e)}
                 className={`
                   aspect-square p-2 rounded-lg text-sm
@@ -149,6 +151,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
               {range.start.toLocaleDateString()} - {range.end.toLocaleDateString()}
             </span>
             <button
+              type="button"
               onClick={() => removeRange(index)}
               className="text-gray-500 hover:text-red-500"
             >
