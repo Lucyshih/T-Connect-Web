@@ -14,6 +14,7 @@ export default function Profile() {
   const [userData, setUserData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
   const [userPosts, setUserPosts] = useState({
     couches: [],
@@ -136,36 +137,58 @@ export default function Profile() {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
+      setSaving(true);
       console.log('開始更新用戶資料:', userData);
       
-      // 更新 Firestore 中的用戶資料
-      await updateDoc(doc(profilesCollection, user.uid), {
+      // 立即更新本地狀態，提供即時反饋
+      const updatedUserData = {
         ...userData,
-        updatedAt: serverTimestamp()
-      });
+        updatedAt: new Date() // 使用本地時間，避免等待 serverTimestamp
+      };
+      setUserData(updatedUserData);
+      
+      // 並行執行更新操作
+      const updatePromises = [
+        // 更新 Firestore 中的用戶資料
+        updateDoc(doc(profilesCollection, user.uid), {
+          ...userData,
+          updatedAt: serverTimestamp()
+        })
+      ];
+      
+      // 只有在 displayName 確實改變時才更新 Firebase Auth
+      if (userData.displayName && userData.displayName !== user.displayName) {
+        updatePromises.push(
+          updateProfile(user, {
+            displayName: userData.displayName
+          }).catch(error => {
+            console.warn('Firebase Auth displayName 更新失敗:', error);
+            // 這不是致命錯誤，繼續執行
+          })
+        );
+      }
+      
+      // 並行執行所有更新操作
+      await Promise.all(updatePromises);
       
       console.log('用戶資料更新成功');
       
-      // 同時更新 Firebase Auth 中的 displayName（如果有的話）
-      if (userData.displayName && userData.displayName !== user.displayName) {
+      // 在背景中進行資料一致性檢查，不阻塞用戶操作
+      setTimeout(async () => {
         try {
-          await updateProfile(user, {
-            displayName: userData.displayName
-          });
-          console.log('Firebase Auth displayName 更新成功');
-        } catch (authUpdateError) {
-          console.warn('Firebase Auth displayName 更新失敗:', authUpdateError);
-          // 這不是致命錯誤，繼續執行
+          const latestDoc = await getDoc(doc(profilesCollection, user.uid));
+          if (latestDoc.exists()) {
+            const latestData = latestDoc.data();
+            // 只在資料確實不同時才更新
+            if (JSON.stringify(latestData) !== JSON.stringify(updatedUserData)) {
+              console.log('檢測到資料不一致，更新本地狀態');
+              setUserData(latestData);
+            }
+          }
+        } catch (error) {
+          console.warn('背景資料一致性檢查失敗:', error);
         }
-      }
-      
-      // 重新獲取最新的用戶資料
-      const updatedUserDoc = await getDoc(doc(profilesCollection, user.uid));
-      if (updatedUserDoc.exists()) {
-        const updatedData = updatedUserDoc.data();
-        setUserData(updatedData);
-        console.log('本地狀態已更新為最新資料:', updatedData);
-      }
+      }, 1000);
       
       setIsEditing(false);
       
@@ -174,7 +197,13 @@ export default function Profile() {
       
     } catch (error) {
       console.error('更新用戶資料失敗:', error);
+      
+      // 如果更新失敗，恢復原始資料
+      fetchUserData();
+      
       alert(`更新失敗: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -320,9 +349,24 @@ export default function Profile() {
                 <div className="flex space-x-2">
                   <button
                     onClick={handleUpdateProfile}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    className={`px-4 py-2 rounded-lg flex items-center justify-center ${
+                      saving 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-green-600 hover:bg-green-700'
+                    } text-white`}
+                    disabled={saving}
                   >
-                    儲存
+                    {saving ? (
+                      <div className="flex items-center space-x-2">
+                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>儲存中...</span>
+                      </div>
+                    ) : (
+                      '儲存'
+                    )}
                   </button>
                   <button
                     onClick={() => {
