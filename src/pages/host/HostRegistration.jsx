@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Upload, Plus, X, Home, Compass,Camera } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuth } from '../../hooks/useAuth';
 import Navbar from '../../components/Navbar';
 import { couchesCollection } from '../../firebase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';

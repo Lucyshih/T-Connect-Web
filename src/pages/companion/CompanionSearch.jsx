@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuth } from '../../hooks/useAuth';
 import { MapPin, Calendar, Users, Compass, Home, Route, Plus, X } from 'lucide-react';
 import { companionsCollection } from '../../firebase.js';
 import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';

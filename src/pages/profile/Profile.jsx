@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { couchesCollection, companionsCollection, localsCollection, profilesCollection, storage, db } from '../../firebase';
@@ -31,7 +31,22 @@ export default function Profile() {
       try {
         const userDoc = await getDoc(doc(profilesCollection, user.uid));
         if (userDoc.exists()) {
-          setUserData(userDoc.data());
+          const existingData = userDoc.data();
+          // 優先使用 Firebase Auth 中的 displayName，如果 profilesCollection 中沒有或為空
+          const displayName = user.displayName || existingData.displayName || '';
+          const updatedData = {
+            ...existingData,
+            displayName: displayName
+          };
+          
+          // 如果 displayName 有更新，同步到 profilesCollection
+          if (displayName !== existingData.displayName) {
+            await updateDoc(doc(profilesCollection, user.uid), {
+              displayName: displayName
+            });
+          }
+          
+          setUserData(updatedData);
         } else {
           // 如果用戶資料不存在，創建一個新的
           const newUserData = {

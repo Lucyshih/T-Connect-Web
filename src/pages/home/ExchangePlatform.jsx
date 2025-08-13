@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useAuth } from '../../hooks/useAuth';
 import { MapPin, Users, Calendar, Home, Compass, UserCheck, MessageCircle } from 'lucide-react';
 import SearchBar from '../../components/SearchBar';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';

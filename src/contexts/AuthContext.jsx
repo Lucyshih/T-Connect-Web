@@ -8,7 +8,8 @@ import {
   signOut,
   signInWithPopup,
   GoogleAuthProvider,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  updateProfile
 } from 'firebase/auth';
 
 // 建立 Context
@@ -39,8 +40,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   // 註冊用戶
-  const signup = (email, password) => {
-    return createUserWithEmailAndPassword(auth, email, password);
+  const signup = async (email, password, displayName) => {
+    try {
+      // 創建用戶帳號
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // 更新用戶的 displayName
+      if (displayName && displayName.trim()) {
+        await updateProfile(user, {
+          displayName: displayName.trim()
+        });
+      }
+      
+      return userCredential;
+    } catch (error) {
+      throw error;
+    }
   };
 
   // 登入用戶
