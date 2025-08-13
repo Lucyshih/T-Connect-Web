@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "travelconnect-4a4df"
-  }
+    "default": "travelconnect-4a4df",
+    "prod": "travelconnect-4a4df"
+  },
+  "targets": {},
+  "etags": {}
 }
