@@ -434,7 +434,7 @@ export default function Profile() {
           </div>
 
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">生活照片</h3>
+            <h3 className="text-lg font-semibold mb-2">生活照片 (最多 5 張 | 僅接受jpg/png/jpeg格式)</h3>
             <div className="grid grid-cols-3 gap-4">
               {userData?.photos?.map((photo, index) => (
                 <div key={index} className="relative">
