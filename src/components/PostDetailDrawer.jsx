@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MapPin, Calendar, Users, Compass, Euro } from 'lucide-react';
+import { X, MapPin, Calendar, Users, Compass, Euro, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { profilesCollection, chatroomsCollection, serverTimestamp } from '../firebase';
 import { getDoc, doc as firestoreDoc, addDoc, updateDoc } from 'firebase/firestore';
@@ -12,9 +12,41 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const [error, setError] = React.useState('');
   const [success, setSuccess] = React.useState('');
   const [previewImg, setPreviewImg] = React.useState(null);
+  const [publisherProfile, setPublisherProfile] = React.useState(null);
+  const [publisherLoading, setPublisherLoading] = React.useState(true);
   const navigate = useNavigate();
 
   console.log('PostDetailDrawer props:', { isOpen, post, type });
+
+  // 獲取發布者的最新資料
+  const fetchPublisherProfile = React.useCallback(async () => {
+    if (!post?.userId) return;
+    
+    try {
+      setPublisherLoading(true);
+      const profileDoc = await getDoc(firestoreDoc(profilesCollection, post.userId));
+      if (profileDoc.exists()) {
+        const profileData = profileDoc.data();
+        setPublisherProfile(profileData);
+        console.log('獲取到發布者最新資料:', profileData);
+      } else {
+        console.log('發布者資料不存在');
+        setPublisherProfile(null);
+      }
+    } catch (error) {
+      console.error('獲取發布者資料失敗:', error);
+      setPublisherProfile(null);
+    } finally {
+      setPublisherLoading(false);
+    }
+  }, [post?.userId]);
+
+  // 當貼文或用戶ID改變時，重新獲取發布者資料
+  React.useEffect(() => {
+    if (isOpen && post?.userId) {
+      fetchPublisherProfile();
+    }
+  }, [isOpen, post?.userId, fetchPublisherProfile]);
 
   if (!isOpen) return null;
 
@@ -139,24 +171,44 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
 
   const renderUserProfile = () => {
     const userId = post.userId;
-    const userName = post.userName || '匿名用戶';
-    const userAvatar = post.userAvatar || post.userphoto || post.userProfilePhoto || '';
+    
+    // 優先使用最新的發布者資料，如果沒有則使用貼文中的資料作為備用
+    const userName = publisherProfile?.displayName || post.userName || '匿名用戶';
+    const userAvatar = publisherProfile?.photos?.[0] || post.userAvatar || post.userphoto || post.userProfilePhoto || '';
+    
     return (
       <div className="mt-6 border-t border-gray-200 pt-6">
-        <h3 className="text-lg font-semibold mb-4">發布者資料</h3>
-        <div
-          className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded"
-          onClick={() => navigate(`/profile/${userId}`)}
-        >
-          {userAvatar ? (
-            <img src={userAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover border" />
-          ) : (
-            <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-              <Users className="w-6 h-6 text-gray-500" />
-            </div>
-          )}
-          <span className="text-lg font-semibold text-blue-700 hover:underline">{userName}</span>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">發布者資料</h3>
+          <button
+            onClick={fetchPublisherProfile}
+            disabled={publisherLoading}
+            className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+            title="刷新發布者資料"
+          >
+            <RefreshCw className={`w-4 h-4 ${publisherLoading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
+        {publisherLoading ? (
+          <div className="flex items-center space-x-3 p-2">
+            <div className="w-12 h-12 bg-gray-300 rounded-full animate-pulse" />
+            <div className="h-4 bg-gray-300 rounded animate-pulse w-24" />
+          </div>
+        ) : (
+          <div
+            className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded"
+            onClick={() => navigate(`/profile/${userId}`)}
+          >
+            {userAvatar ? (
+              <img src={userAvatar} alt="avatar" className="w-12 h-12 rounded-full object-cover border" />
+            ) : (
+              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                <Users className="w-6 h-6 text-gray-500" />
+              </div>
+            )}
+            <span className="text-lg font-semibold text-blue-700 hover:underline">{userName}</span>
+          </div>
+        )}
       </div>
     );
   };
