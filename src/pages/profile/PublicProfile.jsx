@@ -3,12 +3,13 @@ import { useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { profilesCollection } from '../../firebase';
 import { getDoc, doc } from 'firebase/firestore';
-import { User, Mail, Globe, Camera } from 'lucide-react';
+import { User, Mail, Globe, Camera, X } from 'lucide-react';
 
 export default function PublicProfile() {
   const { userId } = useParams();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [previewImg, setPreviewImg] = useState(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -21,6 +22,27 @@ export default function PublicProfile() {
     };
     fetchUserData();
   }, [userId]);
+
+  // 鍵盤 ESC 鍵關閉照片預覽
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && previewImg) {
+        setPreviewImg(null);
+      }
+    };
+
+    if (previewImg) {
+      document.addEventListener('keydown', handleKeyDown);
+      // 禁止背景滾動
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      // 恢復背景滾動
+      document.body.style.overflow = 'unset';
+    };
+  }, [previewImg]);
 
   if (loading) {
     return (
@@ -80,12 +102,14 @@ export default function PublicProfile() {
           <div className="grid grid-cols-3 gap-4">
             {userData.photos?.length > 0 ? (
               userData.photos.map((photo, idx) => (
-                <img
-                  key={idx}
-                  src={photo}
-                  alt={`生活照片${idx + 1}`}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
+                <div key={idx} className="relative aspect-square">
+                  <img
+                    src={photo}
+                    alt={`生活照片${idx + 1}`}
+                    className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setPreviewImg(photo)}
+                  />
+                </div>
               ))
             ) : (
               <div className="col-span-3 text-gray-400 flex flex-col items-center justify-center py-8">
@@ -96,6 +120,29 @@ export default function PublicProfile() {
           </div>
         </div>
       </div>
+      
+      {/* 照片預覽 Lightbox */}
+      {previewImg && (
+        <div className="fixed inset-0 z-[21000] bg-black bg-opacity-80 flex items-center justify-center" onClick={() => setPreviewImg(null)}>
+          <img
+            src={previewImg}
+            alt="放大預覽"
+            className="max-w-full max-h-[80vh] rounded-lg shadow-lg border-4 border-white object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-8 right-8 text-white bg-black bg-opacity-40 rounded-full p-2 hover:bg-opacity-70 transition-all duration-200"
+            onClick={() => setPreviewImg(null)}
+            title="關閉預覽 (ESC)"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          {/* 點擊提示 */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-40 px-3 py-1 rounded-full">
+            點擊任意位置或按 ESC 鍵關閉
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
