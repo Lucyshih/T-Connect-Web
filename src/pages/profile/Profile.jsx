@@ -68,6 +68,8 @@ export default function Profile() {
     // 獲取用戶發布的內容
     const fetchUserPosts = async () => {
       try {
+        console.log('開始獲取用戶貼文，用戶ID:', user.uid);
+        
         // 獲取沙發貼文
         const couchQuery = query(couchesCollection, where('userId', '==', user.uid));
         const couchSnapshot = await getDocs(couchQuery);
@@ -75,6 +77,7 @@ export default function Profile() {
           id: doc.id,
           ...doc.data()
         }));
+        console.log('沙發貼文數量:', couchPosts.length, '貼文:', couchPosts);
 
         // 獲取旅伴貼文
         const companionQuery = query(companionsCollection, where('userId', '==', user.uid));
@@ -83,6 +86,7 @@ export default function Profile() {
           id: doc.id,
           ...doc.data()
         }));
+        console.log('旅伴貼文數量:', companionPosts.length, '貼文:', companionPosts);
 
         // 獲取地陪貼文
         const localQuery = query(localsCollection, where('userId', '==', user.uid));
@@ -91,12 +95,16 @@ export default function Profile() {
           id: doc.id,
           ...doc.data()
         }));
+        console.log('地陪貼文數量:', localPosts.length, '貼文:', localPosts);
 
-        setUserPosts({
+        const newUserPosts = {
           couches: couchPosts,
           companions: companionPosts,
           locals: localPosts
-        });
+        };
+        
+        console.log('設置 userPosts:', newUserPosts);
+        setUserPosts(newUserPosts);
       } catch (error) {
         console.error('獲取用戶貼文失敗:', error);
       }
@@ -104,7 +112,7 @@ export default function Profile() {
 
     fetchUserData();
     fetchUserPosts();
-  }, [user, navigate]);
+  }, [user]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -121,7 +129,14 @@ export default function Profile() {
 
   const handleDeletePost = async (collection, postId) => {
     try {
+      // 安全檢查：確保 collection 是有效的鍵
+      if (!userPosts[collection] || !Array.isArray(userPosts[collection])) {
+        console.error(`無效的集合名稱: ${collection}`);
+        return;
+      }
+
       await deleteDoc(doc(db, collection, postId));
+      
       // 更新狀態
       setUserPosts(prev => ({
         ...prev,
@@ -332,50 +347,50 @@ export default function Profile() {
           {/* 沙發貼文 */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-2">我的沙發貼文</h3>
-              {userPosts.locals.length === 0 ? (
-                <p className="text-gray-500">尚未發布任何貼文</p>
-              ) : (
-                <div className="space-y-4">
-                  {userPosts.couches.map(couch => (
-                    <div key={couch.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold">{couch.title}</h4>
-                          <p className="text-gray-600">{couch.location}</p>
-                          <p className="text-sm font-medium text-blue-600">
-                            €{couch.pricePerNight}/晚
-                          </p>
-                          <div className="mt-2">
-                            <h4 className="text-sm font-medium">可提供住宿的日期：</h4>
-                            {couch.selectedRanges && couch.selectedRanges.length > 0 ? (
-                              couch.selectedRanges.map((range, index) => (
-                                <div key={index} className="text-sm text-gray-600">
-                                  {new Date(range.start.seconds * 1000).toLocaleDateString()} - {new Date(range.end.seconds * 1000).toLocaleDateString()}
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-sm text-gray-500">尚未設定日期</p>
-                            )}
-                          </div>
+            {userPosts.couches.length === 0 ? (
+              <p className="text-gray-500">尚未發布任何貼文</p>
+            ) : (
+              <div className="space-y-4">
+                {userPosts.couches.map(couch => (
+                  <div key={couch.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold">{couch.title}</h4>
+                        <p className="text-gray-600">{couch.location}</p>
+                        <p className="text-sm font-medium text-blue-600">
+                          €{couch.pricePerNight}/晚
+                        </p>
+                        <div className="mt-2">
+                          <h4 className="text-sm font-medium">可提供住宿的日期：</h4>
+                          {couch.selectedRanges && couch.selectedRanges.length > 0 ? (
+                            couch.selectedRanges.map((range, index) => (
+                              <div key={index} className="text-sm text-gray-600">
+                                {new Date(range.start.seconds * 1000).toLocaleDateString()} - {new Date(range.end.seconds * 1000).toLocaleDateString()}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">尚未設定日期</p>
+                          )}
                         </div>
-                        <div className="flex space-x-2">
-                              <button
-                                onClick={() => navigate(`/couch/${couch.id}/edit`)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <Edit2 className="w-5 h-5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeletePost('couchs', couch.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => navigate(`/couch/${couch.id}/edit`)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletePost('couches', couch.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
