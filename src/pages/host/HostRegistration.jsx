@@ -30,6 +30,48 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
     return days;
   };
 
+  // 月份狀態管理
+  const [startMonth, setStartMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+
+  // 切換到上一個月
+  const goToPreviousMonth = () => {
+    setStartMonth(prev => {
+      let newYear = prev.year;
+      let newMonth = prev.month - 1;
+      
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear -= 1;
+      }
+      
+      return { year: newYear, month: newMonth };
+    });
+  };
+
+  // 切換到下一個月
+  const goToNextMonth = () => {
+    setStartMonth(prev => {
+      let newYear = prev.year;
+      let newMonth = prev.month + 1;
+      
+      if (newMonth > 11) {
+        newMonth = 0;
+        newYear += 1;
+      }
+      
+      return { year: newYear, month: newMonth };
+    });
+  };
+
+  // 切換到當前月份
+  const goToCurrentMonth = () => {
+    const now = new Date();
+    setStartMonth({ year: now.getFullYear(), month: now.getMonth() });
+  };
+
   const isDateInRange = (date) => {
     if (!date) return false;
     
@@ -69,20 +111,59 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
     setSelectedRanges(prev => prev.filter((_, i) => i !== index));
   };
 
-  // 獲取當前月份數據
-  const now = new Date();
-  const currentMonth = generateCalendarDays(now.getFullYear(), now.getMonth());
-  const nextMonth = generateCalendarDays(now.getFullYear(), now.getMonth() + 1);
+  // 獲取當前顯示的月份數據
+  const leftMonth = generateCalendarDays(startMonth.year, startMonth.month);
+  const rightMonth = generateCalendarDays(startMonth.year, startMonth.month + 1);
 
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
+  // 月份名稱映射
+  const getMonthName = (month) => {
+    const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+    return monthNames[month];
+  };
+
   return (
     <div className="space-y-4">
+      {/* 月份導航控制 */}
+      <div className="flex items-center justify-between bg-white rounded-lg p-4">
+        <button
+          type="button"
+          onClick={goToPreviousMonth}
+          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span>上一月</span>
+        </button>
+
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={goToCurrentMonth}
+            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+          >
+            回到本月
+          </button>
+          <button
+            type="button"
+            onClick={goToNextMonth}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            <span>下一月</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* 當前月份 */}
+        {/* 左邊月份 */}
         <div className="bg-white rounded-lg p-4">
-          <h3 className="text-lg font-medium mb-4">
-            {now.getFullYear()}年{now.getMonth() + 1}月
+          <h3 className="text-lg font-medium mb-4 text-center">
+            {startMonth.year}年{getMonthName(startMonth.month)}
           </h3>
           <div className="grid grid-cols-7 gap-2">
             {weekDays.map(day => (
@@ -90,7 +171,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
                 {day}
               </div>
             ))}
-            {currentMonth.map((date, index) => (
+            {leftMonth.map((date, index) => (
               <button
                 key={index}
                 type="button"
@@ -100,7 +181,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
                   ${!date ? 'invisible' : ''}
                   ${isDateInRange(date) ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
                 `}
-                disabled={!date || date < now}
+                disabled={!date || date < new Date()}
               >
                 {date?.getDate()}
               </button>
@@ -108,11 +189,10 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
           </div>
         </div>
 
-        {/* 下個月 */}
+        {/* 右邊月份 */}
         <div className="bg-white rounded-lg p-4">
-          <h3 className="text-lg font-medium mb-4">
-            {now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()}年
-            {now.getMonth() === 11 ? 1 : now.getMonth() + 2}月
+          <h3 className="text-lg font-medium mb-4 text-center">
+            {startMonth.month === 11 ? startMonth.year + 1 : startMonth.year}年{getMonthName((startMonth.month + 1) % 12)}
           </h3>
           <div className="grid grid-cols-7 gap-2">
             {weekDays.map(day => (
@@ -120,7 +200,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
                 {day}
               </div>
             ))}
-            {nextMonth.map((date, index) => (
+            {rightMonth.map((date, index) => (
               <button
                 key={index}
                 type="button"
@@ -130,7 +210,7 @@ const Calendar = ({ selectedRanges, setSelectedRanges }) => {
                   ${!date ? 'invisible' : ''}
                   ${isDateInRange(date) ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
                 `}
-                disabled={!date}
+                disabled={!date || date < new Date()}
               >
                 {date?.getDate()}
               </button>
