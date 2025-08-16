@@ -1,32 +1,285 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {initializeApp} = require("firebase-admin/app");
+const {getFirestore} = require("firebase-admin/firestore");
+const {google} = require("googleapis");
+const nodemailer = require("nodemailer");
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
+// 初始化 Firebase Admin
+initializeApp();
+const db = getFirestore();
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+// 設定 Gmail OAuth2
+const OAuth2 = google.auth.OAuth2;
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+// 當 Firestore 中的訊息被新增時觸發
+exports.sendChatNotification = onDocumentCreated(
+    "chatrooms/{chatroomId}/messages/{messageId}", // 修改為實際的訊息路徑
+    async (event) => {
+      const snap = event.data;
+      if (!snap) {
+        console.log("No data associated with the event");
+        return;
+      }
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+      const messageData = snap.data();
+      const messageId = event.params.messageId;
+      const chatroomId = event.params.chatroomId;
+
+      console.log("New message detected:", messageId, "in chatroom:", chatroomId);
+
+      try {
+        // 取得訊息相關資訊 - 根據您的資料結構調整
+        const senderId = messageData.senderId;
+        const messageContent = messageData.text;
+
+        console.log("Message details:", {senderId, messageContent});
+
+        if (!senderId) {
+          console.log("Missing senderId");
+          return;
+        }
+
+        // 從 chatrooms 集合取得聊天室資訊
+        const chatroomDoc = await db
+            .collection("chatrooms")
+            .doc(chatroomId)
+            .get();
+
+        if (!chatroomDoc.exists) {
+          console.log("Chatroom not found:", chatroomId);
+          return;
+        }
+
+        const chatroomData = chatroomDoc.data();
+        const participants = chatroomData.participants || [];
+
+        // 找出接收者（除了發送者之外的其他參與者）
+        const receiverId = participants.find(
+            (participantId) => participantId !== senderId,
+        );
+
+        if (!receiverId) {
+          console.log("No receiver found in chatroom:", chatroomId);
+          return;
+        }
+
+        console.log("Receiver ID:", receiverId);
+
+        // 從 profiles 集合取得收件者資訊（您的程式碼使用 'profiles' 集合）
+        const userDoc = await db
+            .collection("profiles")
+            .doc(receiverId)
+            .get();
+
+        if (!userDoc.exists) {
+          console.log("Receiver user not found:", receiverId);
+          return;
+        }
+
+        const userData = userDoc.data();
+        const receiverEmail = userData.email;
+
+        // 檢查用戶是否願意接收郵件通知
+        if (userData.emailNotifications === false) {
+          console.log("User disabled email notifications:", receiverId);
+          return;
+        }
+
+        if (!receiverEmail) {
+          console.log("No email found for user:", receiverId);
+          return;
+        }
+
+        const lastEmailSent = userData.lastEmailSent;
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+        if (lastEmailSent && lastEmailSent.toDate && lastEmailSent.toDate() > fiveMinutesAgo) {
+          console.log("Email already sent recently for user:", receiverId);
+          return;
+        }
+
+        // 取得發送者名稱
+        let senderName = "匿名用戶";
+        if (senderId) {
+          const senderDoc = await db
+              .collection("profiles")
+              .doc(senderId)
+              .get();
+
+          if (senderDoc.exists) {
+            const senderData = senderDoc.data();
+            senderName = senderData.displayName ||
+                        senderData.name ||
+                        "匿名用戶";
+          }
+        }
+
+        // 發送郵件
+        await sendEmail(receiverEmail, senderName, messageContent);
+
+        // 更新用戶的最後郵件發送時間
+        await db
+            .collection("profiles")
+            .doc(receiverId)
+            .update({
+              lastEmailSent: now,
+            });
+
+        console.log("Email notification sent successfully to:", receiverEmail);
+      } catch (error) {
+        console.error("Error sending email notification:", error);
+      }
+    },
+);
+
+async function sendEmail(to, senderName, messageContent) {
+  try {
+    // 從環境變數取得 Gmail 憑證
+    const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0eSqunCQjf-0PCgYIARAAGA4SNwF-L9IrO5Elbwd-XxQS0x4NkfDUBfW1-bU_NHad8TjGCUbm-zyH3RSVPvZ4HBKOb1dLNPOF4dA";
+    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+
+    if (!clientId || !clientSecret || !refreshToken) {
+      throw new Error("Gmail configuration missing. Please set environment variables.");
+    }
+
+    // 創建 OAuth2 客戶端
+    const oauth2Client = new OAuth2(
+        clientId,
+        clientSecret,
+        "https://developers.google.com/oauthplayground",
+    );
+
+    // 設定憑證
+    oauth2Client.setCredentials({
+      refresh_token: refreshToken,
+    });
+
+    // 取得 access token
+    const accessToken = await oauth2Client.getAccessToken();
+
+    // 創建 nodemailer 傳輸器
+    const transporter = nodemailer.createTransporter({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user: fromEmail,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        refreshToken: refreshToken,
+        accessToken: accessToken.token,
+      },
+    });
+
+    // 截取訊息內容（避免過長）
+    const truncatedContent = messageContent && messageContent.length > 100 ?
+            messageContent.substring(0, 100) + "..." :
+            messageContent || "(無內容)";
+
+    // 郵件內容
+    const mailOptions = {
+      from: `"T-Connect 通知" <${fromEmail}>`,
+      to: to,
+      subject: `💬 新訊息來自 ${senderName}`,
+      html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { 
+                            font-family: Arial, sans-serif; 
+                            line-height: 1.6; 
+                            color: #333; 
+                        }
+                        .container { 
+                            max-width: 600px; 
+                            margin: 0 auto; 
+                            padding: 20px; 
+                        }
+                        .header { 
+                            background: #4285f4; 
+                            color: white; 
+                            padding: 20px; 
+                            border-radius: 8px 8px 0 0; 
+                        }
+                        .content { 
+                            background: #f9f9f9; 
+                            padding: 20px; 
+                            border-radius: 0 0 8px 8px; 
+                        }
+                        .message { 
+                            background: white; 
+                            padding: 15px; 
+                            border-left: 4px solid #4285f4; 
+                            margin: 15px 0; 
+                        }
+                        .button { 
+                            display: inline-block; 
+                            background: #4285f4; 
+                            color: white; 
+                            padding: 12px 24px; 
+                            text-decoration: none; 
+                            border-radius: 5px; 
+                            margin: 15px 0; 
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h2>T-Connect - 新訊息通知</h2>
+                        </div>
+                        <div class="content">
+                            <p>你好！</p>
+                            <p>你在 T-Connect 聊天室收到一則新訊息：</p>
+                            
+                            <div class="message">
+                                <p><strong>來自:</strong> ${senderName}</p>
+                                <p><strong>內容:</strong> ${truncatedContent}</p>
+                            </div>
+                            
+                            <p>請登入查看完整對話內容。</p>
+                            
+                            <a href="https://travelconnect-4a4df.web.app/" class="button">
+                                查看訊息
+                            </a>
+                            
+                            <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+                            
+                            <p style="font-size: 12px; color: #666;">
+                                如果你不想接收郵件通知，可以在個人設置中關閉此功能。<br>
+                                這是自動發送的郵件，請勿直接回覆。
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `,
+      // 純文字版本（作為備用）
+      text: `
+T-Connect - 新訊息通知
+
+你收到一則新訊息：
+來自: ${senderName}
+內容: ${truncatedContent}
+
+請登入 T-Connect 查看完整對話。
+
+---
+這是自動發送的郵件，請勿直接回覆。
+            `.trim(),
+    };
+
+    // 發送郵件
+    const result = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully:", result.messageId);
+
+    return result;
+  } catch (error) {
+    console.error("Error in sendEmail function:", error);
+    throw error;
+  }
+}

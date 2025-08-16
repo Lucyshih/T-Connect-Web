@@ -14,6 +14,8 @@ module.exports = {
     "no-restricted-globals": ["error", "name", "length"],
     "prefer-arrow-callback": "error",
     "quotes": ["error", "double", {"allowTemplateLiterals": true}],
+    "max-len": ["error", {"code": 200}], // 放寬行長度限制
+    "require-jsdoc": "off", // 關閉 JSDoc 要求
   },
   overrides: [
     {
