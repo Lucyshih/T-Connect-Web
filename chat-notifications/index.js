@@ -161,7 +161,7 @@ async function sendEmail(to, senderName, messageContent) {
     const accessToken = await oauth2Client.getAccessToken();
 
     // 創建 nodemailer 傳輸器
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         type: "OAuth2",
