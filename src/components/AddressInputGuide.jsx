@@ -23,31 +23,6 @@ const AddressInputGuide = ({ type = 'destination' }) => {
       incorrect: 'Amsterdam',
       explanation: '包含國家名稱，避免與美國的 Amsterdam 混淆'
     },
-    {
-      correct: 'Paris, France',
-      incorrect: 'Paris',
-      explanation: '包含國家名稱，避免與美國的 Paris 混淆'
-    },
-    {
-      correct: 'Milan, Italy',
-      incorrect: 'Milan',
-      explanation: '包含國家名稱，避免與美國的 Milan 混淆'
-    },
-    {
-      correct: 'Barcelona, Spain',
-      incorrect: 'Barcelona',
-      explanation: '包含國家名稱，避免與其他國家的 Barcelona 混淆'
-    },
-    {
-      correct: 'Berlin, Germany',
-      incorrect: 'Berlin',
-      explanation: '包含國家名稱，避免與美國的 Berlin 混淆'
-    },
-    {
-      correct: 'London, United Kingdom',
-      incorrect: 'London',
-      explanation: '包含國家名稱，避免與其他國家的 London 混淆'
-    }
   ];
 
   const tips = [
