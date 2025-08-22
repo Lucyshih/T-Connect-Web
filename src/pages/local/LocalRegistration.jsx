@@ -6,6 +6,8 @@ import { localsCollection } from '../../firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
+import { geocodeAddress } from '../../utils/geocoding';
+import AddressInputGuide from '../../components/AddressInputGuide';
 
 const LocalRegistration = () => {
   const { id } = useParams();
@@ -93,25 +95,8 @@ const LocalRegistration = () => {
     }));
   };
 
-  // 地理編碼函數
-  const geocodeAddress = async (address) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
-        };
-      }
-      return null;
-    } catch (error) {
-      console.error('地理編碼錯誤:', error);
-      return null;
-    }
-  };
+  // 使用工具函數的地理編碼
+  const geocodeAddressLocal = geocodeAddress;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,8 +170,9 @@ const LocalRegistration = () => {
             {/* 城市 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                服務城市
+                所在城市
               </label>
+              
               <div className="relative">
                 <MapPin className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
                 <input
@@ -219,17 +205,15 @@ const LocalRegistration = () => {
                         required
                       />
                     </div>
-                    {formData.services.length > 1 && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          removeService(index);
-                        }}
-                        className="p-2 text-gray-500 hover:text-red-500"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        removeService(index);
+                      }}
+                      className="p-2 text-gray-500 hover:text-red-500"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
                 ))}
                 <button

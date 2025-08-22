@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { useAuth } from '../../hooks/useAuth';
-import { MapPin, Calendar, Users, Compass, Home, Route, Plus, X } from 'lucide-react';
-import { companionsCollection } from '../../firebase.js';
-import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import L from 'leaflet';
+import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
+import { companionsCollection } from '../../firebase';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { geocodeAddress } from '../../utils/geocoding';
+import AddressInputGuide from '../../components/AddressInputGuide';
 
 const CompanionSearch = () => {
   const { id } = useParams();
@@ -123,25 +124,8 @@ const CompanionSearch = () => {
     }));
   };
 
-  // 地理編碼函數
-  const geocodeAddress = async (address) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
-        };
-      }
-      return null;
-    } catch (error) {
-      console.error('地理編碼錯誤:', error);
-      return null;
-    }
-  };
+  // 使用工具函數的地理編碼
+  const geocodeAddressLocal = geocodeAddress;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -191,7 +175,7 @@ const CompanionSearch = () => {
       console.log('開始獲取目的地座標');
       const destinationsWithCoordinates = await Promise.all(
         formData.destinations.map(async (destination) => {
-          const coordinates = await geocodeAddress(destination.name);
+          const coordinates = await geocodeAddressLocal(destination.name);
           console.log('目的地座標:', destination.name, coordinates);
           return {
             name: destination.name,
@@ -276,18 +260,22 @@ const CompanionSearch = () => {
             {/* 目的地 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                目的地 | 限定同一個國家
+                目的地 
               </label>
+              
               <div className="flex flex-col space-y-2">
                 {formData.destinations.map((destination, index) => (
                   <div key={index} className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={destination.name || ''}
-                      onChange={(e) => updateDestination(index, e.target.value)}
-                      className="flex-1 px-3 py-2 border rounded-lg"
-                      placeholder="請輸入英文地址，例如：Paris, France"
-                    />
+                    <div className="relative flex-1">
+                      <MapPin className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={destination.name || ''}
+                        onChange={(e) => updateDestination(index, e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                        placeholder="請輸入英文地址，例如：Paris, France"
+                      />
+                    </div>
                     {index > 0 && (
                       <button
                         type="button"

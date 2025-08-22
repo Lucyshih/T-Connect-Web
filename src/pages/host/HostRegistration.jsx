@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MapPin, Upload, Plus, X, Home, Compass,Camera } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Navbar from '../../components/Navbar';
 import { couchesCollection } from '../../firebase';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { geocodeAddress } from '../../utils/geocoding';
+import AddressInputGuide from '../../components/AddressInputGuide';
 
-const Calendar = ({ selectedRanges, setSelectedRanges }) => {
+const DateRangeSelector = ({ selectedRanges, setSelectedRanges }) => {
   const [currentSelection, setCurrentSelection] = useState({ start: null, end: null });
   const [isSelecting, setIsSelecting] = useState(false);
 
@@ -296,25 +299,8 @@ const HostRegistration = () => {
     }
   }, [id, isEditing]);
 
-  // 地理編碼函數
-  const geocodeAddress = async (address) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
-        };
-      }
-      return null;
-    } catch (error) {
-      console.error('地理編碼錯誤:', error);
-      return null;
-    }
-  };
+  // 使用工具函數的地理編碼
+  const geocodeAddressLocal = geocodeAddress;
   // 上傳沙發照片
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
@@ -392,7 +378,7 @@ const HostRegistration = () => {
 
       // 獲取城市的地理座標
       console.log('開始獲取城市座標:', formData.location);
-      const coordinates = await geocodeAddress(formData.location);
+      const coordinates = await geocodeAddressLocal(formData.location);
       if (!coordinates) {
         console.log('無法獲取城市座標');
         setError('無法獲取該城市的座標，請檢查城市名稱是否正確');
@@ -500,18 +486,23 @@ const HostRegistration = () => {
               />
             </div>
 
+            {/* 城市 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                地點
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                地址
               </label>
-              <input
-                type="text"
-                value={formData.location}
-                placeholder="請輸入英文地址，例如：Paris, France"
-                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg"
-                required
-              />
+              
+              <div className="relative">
+                <MapPin className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
+                <input
+                  type="text"
+                  value={formData.location}
+                  placeholder="請輸入英文地址，例如：Paris, France"
+                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                  required
+                />
+              </div>
             </div>
 
             <div>
@@ -619,7 +610,7 @@ const HostRegistration = () => {
                       accept="image/*"
                       onChange={handlePhotoUpload}
                     />
-                    <Camera className="w-6 h-6 text-gray-400" />
+                    <Plus className="w-6 h-6 text-gray-400" />
                     <span className="text-sm text-gray-500 mt-2">
                       {uploading ? '上傳中...' : '上傳照片'}
                     </span>
@@ -634,7 +625,7 @@ const HostRegistration = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               可提供住宿的日期
             </label>
-            <Calendar 
+            <DateRangeSelector 
               selectedRanges={selectedRanges} 
               setSelectedRanges={setSelectedRanges} 
             />
