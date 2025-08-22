@@ -149,27 +149,29 @@ export default function ExchangePlatform() {
 
     // 處理旅伴貼文
     companions.forEach(companion => {
-      const firstDestination = companion.destinations?.[0];
-      if (firstDestination?.coordinates?.lat && firstDestination?.coordinates?.lng) {
-        const roundedLat = Math.round(firstDestination.coordinates.lat * 10) / 10;
-        const roundedLng = Math.round(firstDestination.coordinates.lng * 10) / 10;
-        const gridKey = `${roundedLat},${roundedLng}`;
-        
-        if (!clusters[gridKey]) {
-          clusters[gridKey] = {
-            position: [roundedLat, roundedLng],
-            couches: [],
-            companions: [],
-            locals: [],
-            // 新增：統一聚合資料
-            location: firstDestination.name || '未知地點',
-            coords: { lat: roundedLat, lng: roundedLng },
-            posts: []
-          };
+      // 遍歷所有目的地，為每個目的地創建一個聚合點
+      companion.destinations?.forEach(destination => {
+        if (destination?.coordinates?.lat && destination?.coordinates?.lng) {
+          const roundedLat = Math.round(destination.coordinates.lat * 10) / 10;
+          const roundedLng = Math.round(destination.coordinates.lng * 10) / 10;
+          const gridKey = `${roundedLat},${roundedLng}`;
+          
+          if (!clusters[gridKey]) {
+            clusters[gridKey] = {
+              position: [roundedLat, roundedLng],
+              couches: [],
+              companions: [],
+              locals: [],
+              // 新增：統一聚合資料
+              location: destination.name || '未知地點',
+              coords: { lat: roundedLat, lng: roundedLng },
+              posts: []
+            };
+          }
+          clusters[gridKey].companions.push(companion);
+          clusters[gridKey].posts.push({ ...companion, type: 'companion' });
         }
-        clusters[gridKey].companions.push(companion);
-        clusters[gridKey].posts.push({ ...companion, type: 'companion' });
-      }
+      });
     });
 
     // 處理地陪貼文
@@ -194,6 +196,16 @@ export default function ExchangePlatform() {
         clusters[gridKey].locals.push(local);
         clusters[gridKey].posts.push({ ...local, type: 'local' });
       }
+    });
+
+    // 對每個聚合點的去重處理（避免同一個貼文重複顯示）
+    Object.values(clusters).forEach(cluster => {
+      // 使用 Map 來去重，以貼文 ID 為 key
+      const uniquePostsMap = new Map();
+      cluster.posts.forEach(post => {
+        uniquePostsMap.set(post.id, post);
+      });
+      cluster.posts = Array.from(uniquePostsMap.values());
     });
 
     return clusters;
