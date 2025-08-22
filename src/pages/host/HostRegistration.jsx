@@ -6,7 +6,7 @@ import { couchesCollection } from '../../firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { MapPin, Calendar, Users, Compass, Star, Globe, Plus, X } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { geocodeAddress } from '../../utils/geocoding';
 import AddressInputGuide from '../../components/AddressInputGuide';
 
@@ -268,6 +268,7 @@ const HostRegistration = () => {
     coordinates: { lat: 0, lng: 0 }
   });
   const [selectedRanges, setSelectedRanges] = useState([]);
+  const [deletedPhotos, setDeletedPhotos] = useState([]); // 追蹤已刪除的照片
   const facilities = [
     "WiFi", "廚房", "洗衣機", "陽台", "獨立衛浴", "冷氣"
   ];
@@ -299,8 +300,32 @@ const HostRegistration = () => {
     }
   }, [id, isEditing]);
 
+  // 組件卸載時清理未保存的已刪除照片
+  useEffect(() => {
+    return () => {
+      // 如果組件卸載時還有未保存的已刪除照片，嘗試清理
+      if (deletedPhotos.length > 0 && !loading) {
+        console.log('組件卸載，清理未保存的已刪除照片:', deletedPhotos.length, '張');
+        cleanupDeletedPhotos(deletedPhotos);
+      }
+    };
+  }, [deletedPhotos, loading]);
+
   // 使用工具函數的地理編碼
   const geocodeAddressLocal = geocodeAddress;
+  // 生成唯一文件名的函數
+  const generateUniqueFileName = (originalFileName) => {
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const fileExtension = originalFileName.split('.').pop();
+    const fileNameWithoutExtension = originalFileName.replace(`.${fileExtension}`, '');
+    
+    // 在編輯模式下，添加額外的唯一標識符
+    const editIdentifier = isEditing ? `_edit_${id || 'new'}` : '';
+    
+    return `${timestamp}_${randomString}${editIdentifier}_${fileNameWithoutExtension}.${fileExtension}`;
+  };
+
   // 上傳沙發照片
   const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
@@ -308,9 +333,13 @@ const HostRegistration = () => {
 
     try {
       setUploading(true);
+      
+      // 生成唯一的文件名
+      const uniqueFileName = generateUniqueFileName(file.name);
+      
       // 創建存儲引用
       const storage = getStorage();
-      const storageRef = ref(storage, `HostRegistration/${user.uid}/${Date.now()}_${file.name}`);
+      const storageRef = ref(storage, `HostRegistration/${user.uid}/${uniqueFileName}`);
       
       // 上傳文件
       await uploadBytes(storageRef, file);
@@ -324,6 +353,12 @@ const HostRegistration = () => {
         photos: [...(prev.photos || []), downloadURL]
       }));
 
+      console.log('照片上傳成功:', uniqueFileName);
+      
+      // 清空文件輸入，允許重新選擇相同文件
+      if (e.target) {
+        e.target.value = '';
+      }
     } catch (error) {
       console.error('上傳照片失敗:', error);
       setError('上傳照片失敗，請稍後再試');
@@ -334,16 +369,53 @@ const HostRegistration = () => {
 
   const handleDeletePhoto = async (index) => {
     try {
+      const photoUrl = formData.photos[index];
+      
+      // 如果是編輯模式，只追蹤已刪除的照片，不立即刪除文件
+      if (isEditing && photoUrl) {
+        setDeletedPhotos(prev => [...prev, photoUrl]);
+        console.log('📝 編輯模式：已追蹤待刪除的照片，將在提交時清理');
+      } else {
+        // 非編輯模式：立即從 Firebase Storage 中刪除文件
+        if (photoUrl && photoUrl.includes('firebase')) {
+          try {
+            // 從 Firebase Storage URL 中正確提取文件路徑
+            const url = new URL(photoUrl);
+            const pathMatch = url.pathname.match(/\/o\/(.+)/);
+            
+            if (pathMatch) {
+              const decodedPath = decodeURIComponent(pathMatch[1]);
+              const storage = getStorage();
+              const photoRef = ref(storage, decodedPath);
+              
+              await deleteObject(photoRef);
+              console.log('✅ 照片已從 Firebase Storage 中刪除:', decodedPath);
+            } else {
+              console.warn('⚠️ 無法從 URL 中提取文件路徑:', photoUrl);
+            }
+          } catch (deleteError) {
+            if (deleteError.code === 'storage/object-not-found') {
+              console.log('ℹ️ 文件已不存在，可能已被刪除:', photoUrl);
+            } else {
+              console.error('❌ 從 Firebase Storage 刪除照片失敗:', deleteError);
+            }
+            // 即使刪除失敗，也繼續從本地狀態中移除
+          }
+        }
+      }
+      
+      // 更新本地狀態
       const newPhotos = [...formData.photos];
       newPhotos.splice(index, 1);
       
-      // 只更新本地狀態，不更新 Firestore
       setFormData(prev => ({
         ...prev,
         photos: newPhotos
       }));
+      
+      console.log('✅ 照片已從本地狀態中移除');
     } catch (error) {
-      console.error('刪除照片失敗:', error);
+      console.error('❌ 刪除照片失敗:', error);
       setError('刪除照片失敗，請稍後再試');
     }
   };
@@ -421,6 +493,15 @@ const HostRegistration = () => {
             updatedAt: serverTimestamp()
           });
           console.log('更新成功');
+          
+          // 清理已刪除的照片
+          if (deletedPhotos.length > 0) {
+            await cleanupDeletedPhotos(deletedPhotos);
+            
+            // 清空已刪除照片列表
+            setDeletedPhotos([]);
+          }
+          
           alert('沙發貼文更新成功！');
         } catch (updateError) {
           console.error('更新失敗:', updateError);
@@ -461,6 +542,52 @@ const HostRegistration = () => {
       console.log('設置 loading 狀態為 false');
       setLoading(false);
     }
+  };
+
+  // 清理已刪除照片的函數
+  const cleanupDeletedPhotos = async (photoUrls) => {
+    if (photoUrls.length === 0) return;
+    
+    console.log('開始清理已刪除的照片:', photoUrls.length, '張');
+    const storage = getStorage();
+    
+    // 使用 Set 去重，避免重複刪除同一個文件
+    const uniquePhotoUrls = [...new Set(photoUrls)];
+    console.log('去重後的照片數量:', uniquePhotoUrls.length, '張');
+    
+    for (const photoUrl of uniquePhotoUrls) {
+      if (photoUrl && photoUrl.includes('firebase')) {
+        try {
+          // 從 Firebase Storage URL 中正確提取文件路徑
+          const url = new URL(photoUrl);
+          const pathMatch = url.pathname.match(/\/o\/(.+)/);
+          
+          if (pathMatch) {
+            const decodedPath = decodeURIComponent(pathMatch[1]);
+            console.log('嘗試刪除文件:', decodedPath);
+            
+            const photoRef = ref(storage, decodedPath);
+            await deleteObject(photoRef);
+            console.log('✅ 已成功清理照片:', decodedPath);
+          } else {
+            console.warn('⚠️ 無法從 URL 中提取文件路徑:', photoUrl);
+          }
+        } catch (cleanupError) {
+          if (cleanupError.code === 'storage/object-not-found') {
+            console.log('ℹ️ 文件已不存在，跳過清理:', photoUrl);
+          } else if (cleanupError.code === 'storage/unauthorized') {
+            console.warn('⚠️ 無權限刪除文件:', photoUrl);
+          } else {
+            console.error('❌ 清理照片失敗:', photoUrl, cleanupError);
+          }
+          // 如果清理失敗，記錄錯誤但不中斷流程
+        }
+      } else {
+        console.log('ℹ️ 跳過非 Firebase Storage URL:', photoUrl);
+      }
+    }
+    
+    console.log('🎉 照片清理完成');
   };
 
   return (
