@@ -12,6 +12,7 @@ const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 const {initializeApp} = require("firebase-admin/app");
 const {getFirestore} = require("firebase-admin/firestore");
+const {getAuth} = require("firebase-admin/auth");
 const {google} = require("googleapis");
 const nodemailer = require("nodemailer");
 const logger = require("firebase-functions/logger");
@@ -21,6 +22,9 @@ initializeApp();
 
 // 獲取 Firestore 實例
 const db = getFirestore();
+
+// 獲取 Auth 實例
+const auth = getAuth();
 
 /**
  * 清理過期貼文的 Cloud Function
@@ -213,6 +217,231 @@ exports.helloWorld = onRequest((request, response) => {
 });
 
 /**
+ * 創建基本個人檔案函數
+ * 為所有註冊用戶建立基本的個人檔案
+ */
+exports.createBasicProfiles = onRequest(async (request, response) => {
+  try {
+    // 檢查是否為 POST 請求
+    if (request.method !== "POST") {
+      response.status(405).send("只允許 POST 請求");
+      return;
+    }
+    
+    // 檢查認證
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      response.status(401).send("需要認證");
+      return;
+    }
+    
+    logger.info("開始為所有註冊用戶建立基本個人檔案...");
+    
+    // 獲取所有註冊用戶
+    const listUsersResult = await auth.listUsers();
+    const allUsers = listUsersResult.users;
+    
+    logger.info(`找到 ${allUsers.length} 個註冊用戶`);
+    
+    // 獲取現有的個人檔案
+    const profilesSnapshot = await db.collection('profiles').get();
+    const existingProfiles = new Set();
+    profilesSnapshot.forEach(doc => {
+      existingProfiles.add(doc.id);
+    });
+    
+    logger.info(`現有個人檔案: ${existingProfiles.size} 個`);
+    
+    let createdCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    
+    // 為每個用戶建立基本個人檔案
+    for (const user of allUsers) {
+      try {
+        if (existingProfiles.has(user.uid)) {
+          logger.info(`跳過用戶 ${user.email}: 已有個人檔案`);
+          skippedCount++;
+          continue;
+        }
+        
+        // 建立基本個人檔案
+        const basicProfile = {
+          displayName: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          emailNotifications: true, // 預設啟用郵件通知
+          createdAt: new Date(),
+          isBasicProfile: true, // 標記為基本個人檔案
+          nationality: '',
+          bio: '',
+          photos: []
+        };
+        
+        await db.collection('profiles').doc(user.uid).set(basicProfile);
+        
+        logger.info(`為用戶 ${user.email} 建立基本個人檔案`);
+        createdCount++;
+        
+        // 避免過於頻繁的寫入
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        logger.error(`為用戶 ${user.email} 建立個人檔案失敗:`, error);
+        errorCount++;
+      }
+    }
+    
+    logger.info(`完成！新建: ${createdCount}, 跳過: ${skippedCount}, 失敗: ${errorCount}`);
+    
+    response.status(200).json({
+      success: true,
+      message: "基本個人檔案創建完成",
+      totalUsers: allUsers.length,
+      createdProfiles: createdCount,
+      skippedProfiles: skippedCount,
+      failedProfiles: errorCount,
+      totalProfiles: existingProfiles.size + createdCount,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error("創建基本個人檔案時發生錯誤:", error);
+    response.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 一次性系統通知函數
+ * 向所有用戶發送聊天通知功能恢復的郵件
+ */
+exports.sendSystemNotification = onRequest(async (request, response) => {
+  try {
+    // 檢查是否為 POST 請求
+    if (request.method !== "POST") {
+      response.status(405).send("只允許 POST 請求");
+      return;
+    }
+    
+    // 檢查認證（這裡可以加入你的認證邏輯）
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      response.status(401).send("需要認證");
+      return;
+    }
+    
+    logger.info("開始發送系統通知郵件...");
+    
+    // 獲取所有註冊用戶資料（從 profiles 集合，因為這是存儲用戶資料的地方）
+    const profilesSnapshot = await db.collection("profiles").get();
+    
+    if (profilesSnapshot.empty) {
+      logger.info("沒有找到任何用戶資料");
+      response.status(200).json({
+        success: true,
+        message: "沒有找到任何用戶資料",
+        emailsSent: 0
+      });
+      return;
+    }
+    
+    logger.info(`找到 ${profilesSnapshot.size} 個用戶資料`);
+    
+    let emailsSent = 0;
+    let emailsFailed = 0;
+    const failedEmails = [];
+    
+    // 批量處理用戶
+    const batchSize = 10; // 每批處理10個用戶
+    const users = [];
+    profilesSnapshot.forEach(doc => {
+      const userData = doc.data();
+      users.push({ 
+        id: doc.id, 
+        ...userData
+      });
+    });
+    
+    logger.info(`開始處理 ${users.length} 個用戶，分批發送郵件...`);
+    
+    for (let i = 0; i < users.length; i += batchSize) {
+      const batch = users.slice(i, i + batchSize);
+      
+      // 並行發送郵件
+      const promises = batch.map(async (user) => {
+        try {
+          // 檢查用戶是否有郵箱
+          if (!user.email) {
+            logger.info(`跳過用戶 ${user.id}: 無郵箱`);
+            return { success: false, reason: "no_email", userId: user.id };
+          }
+          
+          // 檢查是否禁用通知（預設啟用通知）
+          if (user.emailNotifications === false) {
+            logger.info(`跳過用戶 ${user.id}: 已禁用通知`);
+            return { success: false, reason: "notifications_disabled", userId: user.id };
+          }
+          
+          // 發送系統通知郵件
+          const userName = user.displayName || user.name || "T-Connect 用戶";
+          await sendSystemEmail(user.email, userName);
+          
+          logger.info(`成功發送系統通知郵件給用戶 ${user.id}: ${user.email}`);
+          return { success: true, userId: user.id, email: user.email };
+          
+        } catch (error) {
+          logger.error(`發送郵件給用戶 ${user.id} 失敗:`, error);
+          return { success: false, reason: "send_failed", userId: user.id, email: user.email, error: error.message };
+        }
+      });
+      
+      // 等待當前批次完成
+      const results = await Promise.all(promises);
+      
+      // 統計結果
+      results.forEach(result => {
+        if (result.success) {
+          emailsSent++;
+        } else {
+          emailsFailed++;
+          if (result.email) {
+            failedEmails.push(result.email);
+          }
+        }
+      });
+      
+      // 批次間隔，避免過於頻繁的 API 調用
+      if (i + batchSize < users.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 等待2秒
+      }
+      
+      logger.info(`批次 ${Math.floor(i / batchSize) + 1} 完成，已發送: ${emailsSent}, 失敗: ${emailsFailed}`);
+    }
+    
+    logger.info(`系統通知郵件發送完成！總計: 成功 ${emailsSent} 封, 失敗 ${emailsFailed} 封`);
+    
+    response.status(200).json({
+      success: true,
+      message: "系統通知郵件發送完成",
+      totalUsers: users.length,
+      emailsSent: emailsSent,
+      emailsFailed: emailsFailed,
+      failedEmails: failedEmails,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error("發送系統通知時發生錯誤:", error);
+    response.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * 聊天通知函數
  * 當 Firestore 中的訊息被新增時觸發
  */
@@ -266,19 +495,30 @@ exports.sendChatNotification = onDocumentCreated(
 
       logger.info("Receiver ID:", receiverId);
 
-      const userDoc = await db
-        .collection("profiles")
-        .doc(receiverId)
-        .get();
-
-      if (!userDoc.exists) {
-        logger.info("Receiver user not found:", receiverId);
-        return;
+      // 先嘗試從 profiles 集合獲取用戶資料
+      let userDoc = await db.collection("profiles").doc(receiverId).get();
+      let userData = null;
+      
+      if (userDoc.exists) {
+        userData = userDoc.data();
+        logger.info("User profile found:", receiverId);
+      } else {
+        // 如果沒有個人檔案，嘗試從 users 集合獲取基本資料
+        logger.info("No profile found for user, checking users collection:", receiverId);
+        userDoc = await db.collection("users").doc(receiverId).get();
+        
+        if (userDoc.exists) {
+          userData = userDoc.data();
+          logger.info("User basic info found:", receiverId);
+        } else {
+          logger.info("User not found in both collections:", receiverId);
+          return;
+        }
       }
 
-      const userData = userDoc.data();
       const receiverEmail = userData.email;
 
+      // 檢查是否禁用通知（如果沒有個人檔案，預設啟用通知）
       if (userData.emailNotifications === false) {
         logger.info("User disabled email notifications:", receiverId);
         return;
@@ -300,27 +540,55 @@ exports.sendChatNotification = onDocumentCreated(
 
       let senderName = "匿名用戶";
       if (senderId) {
-        const senderDoc = await db
-          .collection("profiles")
-          .doc(senderId)
-          .get();
-
+        // 先嘗試從 profiles 集合獲取發送者資料
+        let senderDoc = await db.collection("profiles").doc(senderId).get();
+        
         if (senderDoc.exists) {
           const senderData = senderDoc.data();
           senderName = senderData.displayName ||
             senderData.name ||
             "匿名用戶";
+        } else {
+          // 如果沒有個人檔案，嘗試從 users 集合獲取基本資料
+          senderDoc = await db.collection("users").doc(senderId).get();
+          
+          if (senderDoc.exists) {
+            const senderData = senderDoc.data();
+            senderName = senderData.displayName ||
+              senderData.name ||
+              senderData.firstName ||
+              senderData.lastName ||
+              "匿名用戶";
+          }
         }
       }
 
       await sendEmail(receiverEmail, senderName, messageContent);
 
-      await db
-        .collection("profiles")
-        .doc(receiverId)
-        .update({
-          lastEmailSent: now,
-        });
+      // 更新 lastEmailSent，優先更新 profiles 集合，如果沒有則更新 users 集合
+      try {
+        await db
+          .collection("profiles")
+          .doc(receiverId)
+          .update({
+            lastEmailSent: now,
+          });
+        logger.info("Updated lastEmailSent in profiles collection for user:", receiverId);
+      } catch (error) {
+        // 如果 profiles 集合更新失敗，嘗試更新 users 集合
+        logger.info("Failed to update profiles, trying users collection for user:", receiverId);
+        try {
+          await db
+            .collection("users")
+            .doc(receiverId)
+            .update({
+              lastEmailSent: now,
+            });
+          logger.info("Updated lastEmailSent in users collection for user:", receiverId);
+        } catch (updateError) {
+          logger.warn("Failed to update lastEmailSent in both collections for user:", receiverId, updateError);
+        }
+      }
 
       logger.info("Email notification sent successfully to:", receiverEmail);
     } catch (error) {
@@ -330,7 +598,178 @@ exports.sendChatNotification = onDocumentCreated(
 );
 
 /**
- * 發送郵件的輔助函數
+ * 發送系統通知郵件的輔助函數
+ */
+async function sendSystemEmail(to, userName) {
+  try {
+    const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0eCL26XsD7W-dCgYIARAAGA4SNwF-L9Irp9Y2lYXRp1Uupvd6tmT32eRaAaoeoUAiWgQAQEVd79uq_pL-gN0pLLXKyleL8ezJtNY";
+    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+
+    if (!clientId || !clientSecret || !refreshToken) {
+      throw new Error("Gmail configuration missing. Please set environment variables.");
+    }
+
+    const OAuth2 = google.auth.OAuth2;
+    const oauth2Client = new OAuth2(
+      clientId,
+      clientSecret,
+      "https://developers.google.com/oauthplayground",
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: refreshToken,
+    });
+
+    const accessToken = await oauth2Client.getAccessToken();
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user: fromEmail,
+        clientId: clientId,
+        clientSecret: clientSecret,
+        refreshToken: refreshToken,
+        accessToken: accessToken.token,
+      },
+    });
+
+    const mailOptions = {
+      from: `"T-Connect 系統通知" <${fromEmail}>`,
+      to: to,
+      subject: `🔔 系統通知恢復 - 請查看您的聊天訊息`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              line-height: 1.6; 
+              color: #333; 
+            }
+            .container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              padding: 20px; 
+            }
+            .header { 
+              background: #34a853; 
+              color: white; 
+              padding: 20px; 
+              border-radius: 8px 8px 0 0; 
+              text-align: center;
+            }
+            .content { 
+              background: #f9f9f9; 
+              padding: 20px; 
+              border-radius: 0 0 8px 8px; 
+            }
+            .notice { 
+              background: #fff3cd; 
+              border: 1px solid #ffeaa7; 
+              padding: 15px; 
+              border-radius: 5px; 
+              margin: 15px 0; 
+            }
+            .button { 
+              display: inline-block; 
+              background: #34a853; 
+              color: white; 
+              padding: 12px 24px; 
+              text-decoration: none; 
+              border-radius: 5px; 
+              margin: 15px 0; 
+            }
+            .footer {
+              margin-top: 20px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              font-size: 12px;
+              color: #666;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2>🔔 T-Connect 系統通知</h2>
+            </div>
+            <div class="content">
+              <p>親愛的 ${userName}，</p>
+              
+              <div class="notice">
+                <h3>📢 重要通知：聊天通知功能已恢復</h3>
+                <p><strong>由於 8/22-8/29 期間聊天室通知功能有錯誤，部分聊天通知可能沒有送達。</strong></p>
+                <p>請登入 T-Connect 查看是否有未讀訊息。</p>
+              </div>
+              
+              <p>我們已經修復了聊天通知系統，現在所有新訊息都會正常發送郵件通知。</p>
+              
+              <p>為確保您不會錯過任何重要訊息，建議您：</p>
+              <ul>
+                <li>立即登入 T-Connect 檢查聊天室</li>
+                <li>查看是否有未讀訊息</li>
+                <li>確認您的郵件通知設置是否正確</li>
+              </ul>
+              
+              <div style="text-align: center;">
+                <a href="https://travelconnect-4a4df.web.app/" class="button">
+                  🔍 立即查看聊天室
+                </a>
+              </div>
+              
+              <div class="footer">
+                <p><strong>感謝您對 T-Connect 的支持！</strong></p>
+                <p>如果您有任何問題，請聯繫我們的客服團隊。</p>
+                <p>這是系統自動發送的郵件，請勿直接回覆。</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+🔔 T-Connect 系統通知
+
+親愛的 ${userName}，
+
+📢 重要通知：聊天通知功能已恢復
+
+由於 8/22-8/29 期間聊天室通知功能有錯誤，部分聊天通知可能沒有送達。
+請登入 T-Connect 查看是否有未讀訊息。
+
+我們已經修復了聊天通知系統，現在所有新訊息都會正常發送郵件通知。
+
+為確保您不會錯過任何重要訊息，建議您：
+- 立即登入 T-Connect 檢查聊天室
+- 查看是否有未讀訊息
+- 確認您的郵件通知設置是否正確
+
+立即查看：https://travelconnect-4a4df.web.app/
+
+---
+感謝您對 T-Connect 的支持！
+如果您有任何問題，請聯繫我們的客服團隊。
+這是系統自動發送的郵件，請勿直接回覆。
+      `.trim(),
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    logger.info("系統通知郵件發送成功:", result.messageId);
+
+    return result;
+  } catch (error) {
+    logger.error("發送系統通知郵件失敗:", error);
+    throw error;
+  }
+}
+
+/**
+ * 發送聊天通知郵件的輔助函數
  */
 async function sendEmail(to, senderName, messageContent) {
   try {
