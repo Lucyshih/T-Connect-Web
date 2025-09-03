@@ -53,6 +53,29 @@ export function AuthProvider({ children }) {
         });
       }
       
+      // 自動建立基本個人檔案
+      try {
+        const { getFirestore, doc, setDoc, serverTimestamp } = await import('../firebase');
+        const db = getFirestore();
+        
+        const basicProfile = {
+          displayName: displayName?.trim() || email.split('@')[0],
+          email: email,
+          emailNotifications: true, // 預設啟用郵件通知
+          createdAt: serverTimestamp(),
+          isBasicProfile: true, // 標記為基本個人檔案
+          nationality: '',
+          bio: '',
+          photos: []
+        };
+        
+        await setDoc(doc(db, 'profiles', user.uid), basicProfile);
+        console.log('✅ 自動建立基本個人檔案成功');
+      } catch (profileError) {
+        console.warn('⚠️ 自動建立個人檔案失敗，但不影響註冊:', profileError);
+        // 不影響註冊流程，只是記錄警告
+      }
+      
       return userCredential;
     } catch (error) {
       throw error;
@@ -66,8 +89,38 @@ export function AuthProvider({ children }) {
 
   // Google 登入
   const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      // 檢查是否為新用戶，如果是則建立基本個人檔案
+      if (result._tokenResponse?.isNewUser) {
+        try {
+          const { getFirestore, doc, setDoc, serverTimestamp } = await import('../firebase');
+          const db = getFirestore();
+          
+          const basicProfile = {
+            displayName: result.user.displayName || result.user.email.split('@')[0],
+            email: result.user.email,
+            emailNotifications: true, // 預設啟用郵件通知
+            createdAt: serverTimestamp(),
+            isBasicProfile: true, // 標記為基本個人檔案
+            nationality: '',
+            bio: '',
+            photos: []
+          };
+          
+          await setDoc(doc(db, 'profiles', result.user.uid), basicProfile);
+          console.log('✅ Google 登入用戶自動建立基本個人檔案成功');
+        } catch (profileError) {
+          console.warn('⚠️ Google 登入用戶自動建立個人檔案失敗:', profileError);
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      throw error;
+    }
   };
 
   // 重設密碼

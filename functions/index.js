@@ -445,9 +445,13 @@ exports.sendSystemNotification = onRequest(async (request, response) => {
  * 聊天通知函數
  * 當 Firestore 中的訊息被新增時觸發
  */
-exports.sendChatNotification = onDocumentCreated(
-  "chatrooms/{chatroomId}/messages/{messageId}",
-  async (event) => {
+exports.sendChatNotification = onDocumentCreated({
+  document: "chatrooms/{chatroomId}/messages/{messageId}",
+  memory: "256MiB",
+  timeoutSeconds: 60,
+  minInstances: 0,
+  maxInstances: 10
+}, async (event) => {
     const snap = event.data;
     if (!snap) {
       logger.info("No data associated with the event");
@@ -703,7 +707,7 @@ async function sendSystemEmail(to, userName) {
               
               <div class="notice">
                 <h3>📢 重要通知：聊天通知功能已恢復</h3>
-                <p><strong>由於 8/22-8/29 期間聊天室通知功能有錯誤，部分聊天通知可能沒有送達。</strong></p>
+                <p><strong>由於 9/3 當天聊天室通知功能有錯誤，部分聊天通知可能沒有送達。</strong></p>
                 <p>請登入 T-Connect 查看是否有未讀訊息。</p>
               </div>
               
@@ -739,7 +743,7 @@ async function sendSystemEmail(to, userName) {
 
 📢 重要通知：聊天通知功能已恢復
 
-由於 8/22-8/29 期間聊天室通知功能有錯誤，部分聊天通知可能沒有送達。
+由於 9/3 當天聊天室通知功能有錯誤，部分聊天通知可能沒有送達。
 請登入 T-Connect 查看是否有未讀訊息。
 
 我們已經修復了聊天通知系統，現在所有新訊息都會正常發送郵件通知。
