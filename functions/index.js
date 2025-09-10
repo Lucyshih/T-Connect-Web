@@ -217,6 +217,164 @@ exports.helloWorld = onRequest((request, response) => {
 });
 
 /**
+ * 定期檢查個人檔案函數
+ * 每天檢查並修復缺少個人檔案的用戶
+ */
+exports.periodicProfileCheck = onSchedule({
+  schedule: "0 2 * * *", // 每天凌晨 2 點執行
+  timeZone: "Asia/Taipei",
+  memory: "256MiB",
+  timeoutSeconds: 300
+}, async (event) => {
+  try {
+    logger.info("開始定期檢查個人檔案...");
+    
+    // 獲取所有註冊用戶
+    const listUsersResult = await auth.listUsers();
+    const allUsers = listUsersResult.users;
+    
+    // 獲取現有的個人檔案
+    const profilesSnapshot = await db.collection('profiles').get();
+    const existingProfiles = new Set();
+    profilesSnapshot.forEach(doc => {
+      existingProfiles.add(doc.id);
+    });
+    
+    let createdCount = 0;
+    let errorCount = 0;
+    
+    // 為缺少個人檔案的用戶建立基本個人檔案
+    for (const user of allUsers) {
+      try {
+        if (existingProfiles.has(user.uid)) {
+          continue; // 已有個人檔案，跳過
+        }
+        
+        // 建立基本個人檔案
+        const basicProfile = {
+          displayName: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          emailNotifications: true,
+          createdAt: new Date(),
+          isBasicProfile: true,
+          nationality: '',
+          bio: '',
+          photos: []
+        };
+        
+        await db.collection('profiles').doc(user.uid).set(basicProfile);
+        logger.info(`為用戶 ${user.email} 建立基本個人檔案`);
+        createdCount++;
+        
+        // 避免過於頻繁的寫入
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        logger.error(`為用戶 ${user.email} 建立個人檔案失敗:`, error);
+        errorCount++;
+      }
+    }
+    
+    logger.info(`定期檢查完成！新建: ${createdCount}, 失敗: ${errorCount}`);
+    
+  } catch (error) {
+    logger.error("定期檢查個人檔案失敗:", error);
+  }
+});
+
+/**
+ * 手動觸發定期檢查函數
+ * 可以手動執行個人檔案檢查
+ */
+exports.manualProfileCheck = onRequest(async (request, response) => {
+  try {
+    // 檢查是否為 POST 請求
+    if (request.method !== "POST") {
+      response.status(405).send("只允許 POST 請求");
+      return;
+    }
+    
+    // 檢查認證
+    const { authToken } = request.body;
+    if (!authToken || authToken !== "tconnect_admin_2025") {
+      response.status(401).send("需要認證");
+      return;
+    }
+    
+    logger.info("開始手動檢查個人檔案...");
+    
+    // 獲取所有註冊用戶
+    const listUsersResult = await auth.listUsers();
+    const allUsers = listUsersResult.users;
+    
+    // 獲取現有的個人檔案
+    const profilesSnapshot = await db.collection('profiles').get();
+    const existingProfiles = new Set();
+    profilesSnapshot.forEach(doc => {
+      existingProfiles.add(doc.id);
+    });
+    
+    let createdCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    
+    // 為缺少個人檔案的用戶建立基本個人檔案
+    for (const user of allUsers) {
+      try {
+        if (existingProfiles.has(user.uid)) {
+          skippedCount++;
+          continue;
+        }
+        
+        // 建立基本個人檔案
+        const basicProfile = {
+          displayName: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          emailNotifications: true,
+          createdAt: new Date(),
+          isBasicProfile: true,
+          nationality: '',
+          bio: '',
+          photos: []
+        };
+        
+        await db.collection('profiles').doc(user.uid).set(basicProfile);
+        logger.info(`為用戶 ${user.email} 建立基本個人檔案`);
+        createdCount++;
+        
+        // 避免過於頻繁的寫入
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        logger.error(`為用戶 ${user.email} 建立個人檔案失敗:`, error);
+        errorCount++;
+      }
+    }
+    
+    logger.info(`手動檢查完成！新建: ${createdCount}, 跳過: ${skippedCount}, 失敗: ${errorCount}`);
+    
+    response.status(200).json({
+      success: true,
+      message: "個人檔案檢查完成",
+      totalUsers: allUsers.length,
+      createdProfiles: createdCount,
+      skippedProfiles: skippedCount,
+      failedProfiles: errorCount,
+      totalProfiles: existingProfiles.size + createdCount,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error("手動檢查個人檔案失敗:", error);
+    response.status(500).json({
+      success: false,
+      message: "檢查失敗",
+      error: error.message
+    });
+  }
+});
+
+/**
  * 創建基本個人檔案函數
  * 為所有註冊用戶建立基本的個人檔案
  */
@@ -442,6 +600,47 @@ exports.sendSystemNotification = onRequest(async (request, response) => {
 });
 
 /**
+ * 監控用戶註冊函數
+ * 當新用戶註冊時，確保建立個人檔案並記錄
+ */
+exports.monitorUserRegistration = onDocumentCreated({
+  document: "profiles/{userId}",
+  memory: "256MiB",
+  timeoutSeconds: 60
+}, async (event) => {
+  try {
+    const snap = event.data;
+    if (!snap) {
+      logger.info("No data associated with the event");
+      return;
+    }
+
+    const userId = event.params.userId;
+    const profileData = snap.data();
+    
+    logger.info(`新用戶個人檔案建立: ${profileData.email} (${userId})`);
+    
+    // 檢查是否為基本個人檔案
+    if (profileData.isBasicProfile) {
+      logger.info(`✅ 基本個人檔案建立成功: ${profileData.email}`);
+    } else {
+      logger.info(`📝 完整個人檔案建立: ${profileData.email}`);
+    }
+    
+    // 記錄用戶註冊統計
+    const statsRef = db.collection('systemStats').doc('userRegistration');
+    await statsRef.set({
+      lastRegistration: new Date(),
+      totalRegistrations: admin.firestore.FieldValue.increment(1),
+      lastUpdated: new Date()
+    }, { merge: true });
+    
+  } catch (error) {
+    logger.error("監控用戶註冊失敗:", error);
+  }
+});
+
+/**
  * 聊天通知函數
  * 當 Firestore 中的訊息被新增時觸發
  */
@@ -636,7 +835,7 @@ async function sendSystemEmail(to, userName) {
         clientId: clientId,
         clientSecret: clientSecret,
         refreshToken: refreshToken,
-        accessToken: accessToken.token,
+        accessToken: accessToken,
       },
     });
 
@@ -772,32 +971,68 @@ async function sendSystemEmail(to, userName) {
   }
 }
 
+// 全域變數存儲 OAuth2 客戶端和 token 信息
+let oauth2Client = null;
+let currentAccessToken = null;
+let tokenExpiryTime = null;
+
+// 初始化 OAuth2 客戶端
+function initializeOAuth2Client() {
+  if (!oauth2Client) {
+    const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
+    
+    oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      "https://developers.google.com/oauthplayground"
+    );
+    oauth2Client.setCredentials({
+      refresh_token: refreshToken
+    });
+  }
+  return oauth2Client;
+}
+
+// 獲取有效的 access token（自動刷新）
+async function getValidAccessToken() {
+  try {
+    const client = initializeOAuth2Client();
+    
+    // 如果沒有 token 或 token 即將過期（提前 5 分鐘刷新）
+    if (!currentAccessToken || !tokenExpiryTime || Date.now() >= (tokenExpiryTime - 5 * 60 * 1000)) {
+      logger.info("正在刷新 Gmail OAuth2 token...");
+      
+      const { credentials } = await client.refreshAccessToken();
+      currentAccessToken = credentials.access_token;
+      tokenExpiryTime = credentials.expiry_date;
+      
+      logger.info("Gmail OAuth2 token 刷新成功");
+    }
+    
+    return currentAccessToken;
+  } catch (error) {
+    logger.error("刷新 Gmail OAuth2 token 失敗:", error);
+    throw error;
+  }
+}
+
 /**
  * 發送聊天通知郵件的輔助函數
  */
 async function sendEmail(to, senderName, messageContent) {
   try {
+    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+
+    if (!fromEmail) {
+      throw new Error("Gmail email configuration missing.");
+    }
+
+    const accessToken = await getValidAccessToken();
     const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
     const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
     const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
-    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
-
-    if (!clientId || !clientSecret || !refreshToken) {
-      throw new Error("Gmail configuration missing. Please set environment variables.");
-    }
-
-    const OAuth2 = google.auth.OAuth2;
-    const oauth2Client = new OAuth2(
-      clientId,
-      clientSecret,
-      "https://developers.google.com/oauthplayground",
-    );
-
-    oauth2Client.setCredentials({
-      refresh_token: refreshToken,
-    });
-
-    const accessToken = await oauth2Client.getAccessToken();
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -807,7 +1042,7 @@ async function sendEmail(to, senderName, messageContent) {
         clientId: clientId,
         clientSecret: clientSecret,
         refreshToken: refreshToken,
-        accessToken: accessToken.token,
+        accessToken: accessToken,
       },
     });
 

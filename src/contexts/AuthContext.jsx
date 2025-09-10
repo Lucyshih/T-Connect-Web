@@ -72,8 +72,12 @@ export function AuthProvider({ children }) {
         await setDoc(doc(db, 'profiles', user.uid), basicProfile);
         console.log('✅ 自動建立基本個人檔案成功');
       } catch (profileError) {
-        console.warn('⚠️ 自動建立個人檔案失敗，但不影響註冊:', profileError);
-        // 不影響註冊流程，只是記錄警告
+        console.error('❌ 自動建立個人檔案失敗:', profileError);
+        // 記錄詳細錯誤信息以便調試
+        console.error('用戶 UID:', user.uid);
+        console.error('用戶 Email:', email);
+        console.error('錯誤詳情:', profileError.message);
+        // 不影響註冊流程，但記錄錯誤
       }
       
       return userCredential;
@@ -110,11 +114,15 @@ export function AuthProvider({ children }) {
             photos: []
           };
           
-          await setDoc(doc(db, 'profiles', result.user.uid), basicProfile);
-          console.log('✅ Google 登入用戶自動建立基本個人檔案成功');
-        } catch (profileError) {
-          console.warn('⚠️ Google 登入用戶自動建立個人檔案失敗:', profileError);
-        }
+        await setDoc(doc(db, 'profiles', result.user.uid), basicProfile);
+        console.log('✅ Google 登入用戶自動建立基本個人檔案成功');
+      } catch (profileError) {
+        console.error('❌ Google 登入用戶自動建立個人檔案失敗:', profileError);
+        // 記錄詳細錯誤信息以便調試
+        console.error('用戶 UID:', result.user.uid);
+        console.error('用戶 Email:', result.user.email);
+        console.error('錯誤詳情:', profileError.message);
+      }
       }
       
       return result;
