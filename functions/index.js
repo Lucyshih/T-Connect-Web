@@ -229,8 +229,8 @@ exports.createBasicProfiles = onRequest(async (request, response) => {
     }
     
     // 檢查認證
-    const authHeader = request.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const { authToken } = request.body;
+    if (!authToken || authToken !== "tconnect_admin_2025") {
       response.status(401).send("需要認證");
       return;
     }
@@ -608,7 +608,7 @@ async function sendSystemEmail(to, userName) {
   try {
     const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
     const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0eCL26XsD7W-dCgYIARAAGA4SNwF-L9Irp9Y2lYXRp1Uupvd6tmT32eRaAaoeoUAiWgQAQEVd79uq_pL-gN0pLLXKyleL8ezJtNY";
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
     const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
 
     if (!clientId || !clientSecret || !refreshToken) {
@@ -779,7 +779,7 @@ async function sendEmail(to, senderName, messageContent) {
   try {
     const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
     const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0eCL26XsD7W-dCgYIARAAGA4SNwF-L9Irp9Y2lYXRp1Uupvd6tmT32eRaAaoeoUAiWgQAQEVd79uq_pL-gN0pLLXKyleL8ezJtNY";
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
     const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
 
     if (!clientId || !clientSecret || !refreshToken) {
