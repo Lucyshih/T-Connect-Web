@@ -13,6 +13,7 @@ import ChatroomList from './pages/chatroom/ChatroomList.jsx';
 import PublicProfile from './pages/profile/PublicProfile.jsx';
 import CleanupAdmin from './pages/admin/CleanupAdmin.jsx';
 import Feedback from './pages/Feedback.jsx';
+import PostDetail from './pages/post/PostDetail.jsx';
 import { useAutoCleanup } from './hooks/useAutoCleanup';
 
 function App() {
@@ -124,6 +125,11 @@ function App() {
               <CleanupAdmin />
             </PrivateRoute>
           }
+        />
+        {/* 貼文分享頁面 - 公開可訪問 */}
+        <Route 
+          path="/post/:postType/:postId" 
+          element={<PostDetail />} 
         />
       </Routes>
     </BrowserRouter>

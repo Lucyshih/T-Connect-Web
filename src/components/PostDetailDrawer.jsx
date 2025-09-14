@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MapPin, Calendar, Users, Compass, Euro, RefreshCw } from 'lucide-react';
+import { X, MapPin, Calendar, Users, Compass, Euro, RefreshCw, Share2, Copy, Check } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { profilesCollection, chatroomsCollection, serverTimestamp } from '../firebase';
 import { getDoc, doc as firestoreDoc, addDoc, updateDoc } from 'firebase/firestore';
@@ -14,6 +14,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const [previewState, setPreviewState] = React.useState({ photos: [], currentIndex: 0, isOpen: false });
   const [publisherProfile, setPublisherProfile] = React.useState(null);
   const [publisherLoading, setPublisherLoading] = React.useState(true);
+  const [copied, setCopied] = React.useState(false);
   const navigate = useNavigate();
 
   console.log('PostDetailDrawer props:', { isOpen, post, type });
@@ -313,6 +314,28 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
     }
   };
 
+  const handleShare = async () => {
+    if (!post) return;
+    
+    const url = `${window.location.origin}/post/${type}/${post.id}`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: post.title || `${type === 'companion' ? '旅伴' : type === 'couch' ? '沙發' : '地陪'}貼文`,
+          text: post.description || '查看這個有趣的貼文',
+          url: url
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('分享失敗:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[20000] overflow-hidden">
       {/* 背景遮罩 */}
@@ -333,13 +356,26 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
                    type === 'couch' ? '沙發詳情' : 
                    '地陪詳情'}
                 </h2>
-                <button
-                  type="button"
-                  className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                  onClick={onClose}
-                >
-                  <X className="h-6 w-6" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleShare}
+                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="分享貼文"
+                  >
+                    {copied ? (
+                      <Check className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Share2 className="h-5 w-5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+                    onClick={onClose}
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
               </div>
             </div>
 

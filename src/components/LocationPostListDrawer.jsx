@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, User, MapPin, Calendar, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, User, MapPin, Calendar, Clock, Share2, Check } from 'lucide-react';
 
 const LocationPostListDrawer = ({ 
   isOpen, 
@@ -8,6 +8,8 @@ const LocationPostListDrawer = ({
   location, 
   onPostClick 
 }) => {
+  const [copiedPostId, setCopiedPostId] = useState(null);
+
   if (!isOpen) return null;
 
   const getTypeLabel = (type) => {
@@ -61,6 +63,28 @@ const LocationPostListDrawer = ({
     // 使用回調函數通知父組件
     if (onPostClick) {
       onPostClick(post);
+    }
+  };
+
+  const handleShare = async (post, event) => {
+    event.stopPropagation(); // 防止觸發貼文點擊
+    
+    const url = `${window.location.origin}/post/${post.type}/${post.id}`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: post.title || `${location} ${getTypeLabel(post.type)}`,
+          text: post.description || '查看這個有趣的貼文',
+          url: url
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopiedPostId(post.id);
+        setTimeout(() => setCopiedPostId(null), 2000);
+      }
+    } catch (err) {
+      console.error('分享失敗:', err);
     }
   };
 
@@ -172,7 +196,18 @@ const LocationPostListDrawer = ({
             </div>
           </div>
           
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center space-x-2">
+            <button
+              onClick={(e) => handleShare(post, e)}
+              className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+              title="分享貼文"
+            >
+              {copiedPostId === post.id ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <Share2 className="w-4 h-4" />
+              )}
+            </button>
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
           </div>
         </div>
