@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { MapPin, Users, Calendar, Home, Compass, UserCheck, MessageCircle } from 'lucide-react';
 import SearchBar from '../../components/SearchBar';
@@ -90,12 +90,13 @@ const createUnifiedClusterIcon = (count) => {
 export default function ExchangePlatform() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeFilter, setActiveFilter] = useState('all');
   const [couches, setCouches] = useState([]);
   const [companions, setCompanions] = useState([]);
   const [locals, setLocals] = useState([]);
   const [clusteredData, setClusteredData] = useState({});
-  const [searchParams, setSearchParams] = useState({
+  const [filterParams, setFilterParams] = useState({
     city: '',
     startDate: '',
     endDate: ''
@@ -214,15 +215,15 @@ export default function ExchangePlatform() {
   // 過濾貼文
   const filterPosts = (posts) => {
     // 如果沒有搜索條件，顯示所有貼文
-    if (!isSearching || (!searchParams.city && !searchParams.startDate && !searchParams.endDate)) {
+    if (!isSearching || (!filterParams.city && !filterParams.startDate && !filterParams.endDate)) {
       return posts;
     }
 
     return posts.filter(post => {
       // 檢查城市是否匹配
       let cityMatch = true;
-      if (searchParams.city) {
-        const searchCity = searchParams.city.toLowerCase();
+      if (filterParams.city) {
+        const searchCity = filterParams.city.toLowerCase();
         // 根據貼文類型判斷
         if (post.selectedRanges) {
           // 沙發貼文
@@ -240,9 +241,9 @@ export default function ExchangePlatform() {
 
       // 檢查日期是否匹配
       let dateMatch = true;
-      if (searchParams.startDate && searchParams.endDate) {
-        const searchStart = new Date(searchParams.startDate);
-        const searchEnd = new Date(searchParams.endDate);
+      if (filterParams.startDate && filterParams.endDate) {
+        const searchStart = new Date(filterParams.startDate);
+        const searchEnd = new Date(filterParams.endDate);
 
         // 根據貼文類型進行不同的日期處理
         if (post.selectedRanges) {
@@ -292,6 +293,43 @@ export default function ExchangePlatform() {
     };
   }, []);
 
+  // 處理分享連結參數
+  useEffect(() => {
+    const drawer = searchParams.get('drawer');
+    const type = searchParams.get('type');
+    const id = searchParams.get('id');
+
+    if (drawer === 'post' && type && id) {
+      console.log('檢測到分享連結參數:', { drawer, type, id });
+      
+      // 根據類型查找貼文
+      let targetPost = null;
+      
+      if (type === 'couch') {
+        targetPost = couches.find(post => post.id === id);
+      } else if (type === 'companion') {
+        targetPost = companions.find(post => post.id === id);
+      } else if (type === 'local') {
+        targetPost = locals.find(post => post.id === id);
+      }
+
+      if (targetPost) {
+        console.log('找到分享的貼文:', targetPost);
+        setSelectedPost({ ...targetPost, type });
+        setIsDrawerOpen(true);
+        
+        // 清除URL參數，避免重複觸發
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('drawer');
+        newSearchParams.delete('type');
+        newSearchParams.delete('id');
+        setSearchParams(newSearchParams);
+      } else {
+        console.log('未找到分享的貼文，可能還在載入中');
+      }
+    }
+  }, [searchParams, couches, companions, locals]);
+
   // 當貼文資料更新時重新聚合
   useEffect(() => {
     const filteredCouches = filterPosts(couches);
@@ -300,18 +338,18 @@ export default function ExchangePlatform() {
     
     const clusters = clusterPosts(filteredCouches, filteredCompanions, filteredLocals);
     setClusteredData(clusters);
-  }, [couches, companions, locals, searchParams, isSearching]);
+  }, [couches, companions, locals, filterParams, isSearching]);
 
   // 處理搜索
   const handleSearch = (e) => {
     e.preventDefault();
     setIsSearching(true);
-    console.log('搜索參數:', searchParams);
+    console.log('搜索參數:', filterParams);
   };
 
   // 處理清除搜索
   const handleClearSearch = () => {
-    setSearchParams({ city: '', startDate: '', endDate: '' });
+    setFilterParams({ city: '', startDate: '', endDate: '' });
     setIsSearching(false);
   };
 
@@ -455,8 +493,8 @@ export default function ExchangePlatform() {
                 type="text"
                 className="w-full px-3 py-2 border rounded-lg"
                 placeholder="只能輸入一個單字  例如：Paris"
-                value={searchParams.city}
-                onChange={(e) => setSearchParams(prev => ({ ...prev, city: e.target.value }))}
+                value={filterParams.city}
+                onChange={(e) => setFilterParams(prev => ({ ...prev, city: e.target.value }))}
               />
             </div>
             <div>
@@ -466,8 +504,8 @@ export default function ExchangePlatform() {
               <input
                 type="date"
                 className="w-full px-3 py-2 border rounded-lg"
-                value={searchParams.startDate}
-                onChange={(e) => setSearchParams(prev => ({ ...prev, startDate: e.target.value }))}
+                value={filterParams.startDate}
+                onChange={(e) => setFilterParams(prev => ({ ...prev, startDate: e.target.value }))}
               />
             </div>
             <div>
@@ -477,8 +515,8 @@ export default function ExchangePlatform() {
               <input
                 type="date"
                 className="w-full px-3 py-2 border rounded-lg"
-                value={searchParams.endDate}
-                onChange={(e) => setSearchParams(prev => ({ ...prev, endDate: e.target.value }))}
+                value={filterParams.endDate}
+                onChange={(e) => setFilterParams(prev => ({ ...prev, endDate: e.target.value }))}
               />
             </div>
             <div className="flex items-end space-x-2">

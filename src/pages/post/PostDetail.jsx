@@ -16,12 +16,39 @@ export default function PostDetail() {
     const fetchPost = async () => {
       try {
         setLoading(true);
-        const postRef = doc(db, `${postType}Posts`, postId);
+        console.log('開始獲取貼文:', { postId, postType });
+        
+        // 根據貼文類型選擇正確的集合名稱
+        let collectionName;
+        switch (postType) {
+          case 'couch':
+            collectionName = 'couches';
+            break;
+          case 'companion':
+            collectionName = 'companions';
+            break;
+          case 'local':
+            collectionName = 'locals';
+            break;
+          default:
+            console.error('無效的貼文類型:', postType);
+            setError('無效的貼文類型');
+            return;
+        }
+        
+        console.log('使用集合名稱:', collectionName);
+        const postRef = doc(db, collectionName, postId);
+        console.log('貼文引用:', postRef.path);
+        
         const postSnap = await getDoc(postRef);
+        console.log('貼文快照存在:', postSnap.exists());
         
         if (postSnap.exists()) {
-          setPost({ id: postSnap.id, ...postSnap.data() });
+          const postData = { id: postSnap.id, ...postSnap.data() };
+          console.log('獲取到貼文資料:', postData);
+          setPost(postData);
         } else {
+          console.log('貼文不存在於集合:', collectionName, 'ID:', postId);
           setError('貼文不存在');
         }
       } catch (err) {
@@ -216,13 +243,29 @@ export default function PostDetail() {
         <div className="text-center">
           <div className="text-6xl mb-4">😞</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">貼文不存在</h1>
-          <p className="text-gray-600 mb-6">這個貼文可能已被刪除或不存在</p>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            返回首頁
-          </button>
+          <p className="text-gray-600 mb-4">這個貼文可能已被刪除或不存在</p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
+            <p className="text-sm text-yellow-800">
+              <strong>調試信息：</strong><br/>
+              貼文類型: {postType}<br/>
+              貼文ID: {postId}<br/>
+              錯誤: {error}
+            </p>
+          </div>
+          <div className="space-x-4">
+            <button
+              onClick={() => navigate('/')}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              返回首頁
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              重新載入
+            </button>
+          </div>
         </div>
       </div>
     );

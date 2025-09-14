@@ -317,7 +317,8 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const handleShare = async () => {
     if (!post) return;
     
-    const url = `${window.location.origin}/post/${type}/${post.id}`;
+    // 創建一個特殊的分享URL，包含drawer參數
+    const url = `${window.location.origin}/?drawer=post&type=${type}&id=${post.id}`;
     
     try {
       if (navigator.share) {

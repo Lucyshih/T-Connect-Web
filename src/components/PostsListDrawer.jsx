@@ -60,7 +60,8 @@ const PostsListDrawer = ({
   const handleShare = async (post, event) => {
     event.stopPropagation(); // 防止觸發貼文點擊
     
-    const url = `${window.location.origin}/post/${type}/${post.id}`;
+    // 創建一個特殊的分享URL，包含drawer參數
+    const url = `${window.location.origin}/?drawer=post&type=${type}&id=${post.id}`;
     
     try {
       if (navigator.share) {

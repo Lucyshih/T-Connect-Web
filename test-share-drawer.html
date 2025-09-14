@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試Drawer分享功能</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-link {
+            display: block;
+            margin: 10px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            border-left: 4px solid #3B82F6;
+        }
+        .test-link:hover {
+            background: #e0e0e0;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #10B981;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left-color: #F59E0B;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 測試Drawer分享功能</h1>
+    
+    <div class="info">
+        <h3>✅ 解決方案說明</h3>
+        <p>我們已經修改了分享功能，現在分享連結會：</p>
+        <ul>
+            <li>使用URL參數格式：<code>/?drawer=post&type=couch&id=abc123</code></li>
+            <li>直接在主頁面開啟drawer，而不是跳轉到新頁面</li>
+            <li>保持與現有UI設計的一致性</li>
+        </ul>
+    </div>
+
+    <div class="warning">
+        <h3>⚠️ 測試前準備</h3>
+        <p>請確保：</p>
+        <ul>
+            <li>開發服務器正在運行 (npm run dev)</li>
+            <li>已經有一些貼文數據在Firebase中</li>
+            <li>打開瀏覽器開發者工具查看控制台輸出</li>
+        </ul>
+    </div>
+
+    <h3>🔗 測試連結：</h3>
+    
+    <a href="/?drawer=post&type=couch&id=test-couch-id" class="test-link">
+        🏠 沙發貼文測試連結
+        <br><small>格式: /?drawer=post&type=couch&id=test-couch-id</small>
+    </a>
+    
+    <a href="/?drawer=post&type=companion&id=test-companion-id" class="test-link">
+        👥 旅伴貼文測試連結
+        <br><small>格式: /?drawer=post&type=companion&id=test-companion-id</small>
+    </a>
+    
+    <a href="/?drawer=post&type=local&id=test-local-id" class="test-link">
+        📍 地陪貼文測試連結
+        <br><small>格式: /?drawer=post&type=local&id=test-local-id</small>
+    </a>
+
+    <h3>📝 如何測試：</h3>
+    <ol>
+        <li>點擊上面的測試連結</li>
+        <li>應該會跳轉到主頁面並自動開啟drawer</li>
+        <li>如果貼文不存在，drawer會顯示錯誤信息</li>
+        <li>查看控制台輸出了解詳細信息</li>
+    </ol>
+
+    <h3>🔧 調試信息：</h3>
+    <p>控制台會顯示：</p>
+    <ul>
+        <li>檢測到的URL參數</li>
+        <li>查找貼文的過程</li>
+        <li>是否成功找到貼文</li>
+        <li>drawer開啟狀態</li>
+    </ul>
+
+    <script>
+        console.log('🧪 Drawer分享功能測試頁面已載入');
+        console.log('當前網址:', window.location.href);
+        console.log('基礎網址:', window.location.origin);
+        
+        // 檢查URL參數
+        const urlParams = new URLSearchParams(window.location.search);
+        const drawer = urlParams.get('drawer');
+        const type = urlParams.get('type');
+        const id = urlParams.get('id');
+        
+        if (drawer === 'post') {
+            console.log('🎯 檢測到分享參數:', { drawer, type, id });
+        }
+    </script>
+</body>
+</html>

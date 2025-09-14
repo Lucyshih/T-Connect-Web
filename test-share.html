@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試分享連結</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-link {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            text-decoration: none;
+            color: #333;
+        }
+        .test-link:hover {
+            background: #e0e0e0;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>測試分享連結</h1>
+    
+    <div class="info">
+        <h3>測試說明</h3>
+        <p>請點擊下面的連結來測試分享功能。如果連結無法正常工作，請檢查：</p>
+        <ul>
+            <li>開發服務器是否正在運行 (npm run dev)</li>
+            <li>Firebase 配置是否正確</li>
+            <li>貼文是否存在於對應的集合中</li>
+        </ul>
+    </div>
+
+    <h3>測試連結：</h3>
+    
+    <a href="/?drawer=post&type=couch&id=test-couch-id" class="test-link">
+        🏠 沙發貼文測試連結 (新格式)
+    </a>
+    
+    <a href="/?drawer=post&type=companion&id=test-companion-id" class="test-link">
+        👥 旅伴貼文測試連結 (新格式)
+    </a>
+    
+    <a href="/?drawer=post&type=local&id=test-local-id" class="test-link">
+        📍 地陪貼文測試連結 (新格式)
+    </a>
+
+    <h4>舊格式（用於對比）：</h4>
+    
+    <a href="/post/couch/test-couch-id" class="test-link">
+        🏠 沙發貼文測試連結 (舊格式)
+    </a>
+    
+    <a href="/post/companion/test-companion-id" class="test-link">
+        👥 旅伴貼文測試連結 (舊格式)
+    </a>
+    
+    <a href="/post/local/test-local-id" class="test-link">
+        📍 地陪貼文測試連結 (舊格式)
+    </a>
+
+    <h3>調試信息：</h3>
+    <p>請打開瀏覽器的開發者工具 (F12) 查看控制台輸出，這將幫助我們診斷問題。</p>
+
+    <script>
+        // 添加一些調試信息
+        console.log('測試頁面已載入');
+        console.log('當前網址:', window.location.href);
+        console.log('基礎網址:', window.location.origin);
+    </script>
+</body>
+</html>
