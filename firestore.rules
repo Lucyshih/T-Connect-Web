@@ -86,5 +86,21 @@ service cloud.firestore {
         (request.auth.uid == userId || 
          request.auth.token.firebase.sign_in_provider == 'google.com');
     }
+    
+    // 評論集合
+    match /comments/{commentId} {
+      // 讀取：所有人可以讀取評論
+      allow read: if true;
+      
+      // 創建：只有登入用戶可以創建評論
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      
+      // 更新：不允許更新評論
+      allow update: if false;
+      
+      // 刪除：不允許刪除評論
+      allow delete: if false;
+    }
   }
 } 

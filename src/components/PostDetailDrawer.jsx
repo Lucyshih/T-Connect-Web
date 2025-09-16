@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, MapPin, Calendar, Users, Compass, Euro, RefreshCw, Share2, Copy, Check } from 'lucide-react';
+import { X, MapPin, Calendar, Users, Compass, Euro, RefreshCw, Share2, Copy, Check, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { profilesCollection, chatroomsCollection, serverTimestamp } from '../firebase';
 import { getDoc, doc as firestoreDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { smartOpenChatroom } from '../utils/chatUtils';
+import { addComment, subscribeToComments, getCommentCount } from '../utils/commentUtils';
 import { useNavigate } from 'react-router-dom';
 
 const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
@@ -15,6 +16,11 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
   const [publisherProfile, setPublisherProfile] = React.useState(null);
   const [publisherLoading, setPublisherLoading] = React.useState(true);
   const [copied, setCopied] = React.useState(false);
+  const [comments, setComments] = React.useState([]);
+  const [commentCount, setCommentCount] = React.useState(0);
+  const [commentsExpanded, setCommentsExpanded] = React.useState(false);
+  const [newComment, setNewComment] = React.useState('');
+  const [commentLoading, setCommentLoading] = React.useState(false);
   const navigate = useNavigate();
 
   console.log('PostDetailDrawer props:', { isOpen, post, type });
@@ -48,6 +54,45 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
       fetchPublisherProfile();
     }
   }, [isOpen, post?.userId, fetchPublisherProfile]);
+
+  // 監聽評論更新
+  React.useEffect(() => {
+    if (!isOpen || !post?.id || (type !== 'couch' && type !== 'local')) {
+      return;
+    }
+
+    const unsubscribe = subscribeToComments(post.id, (updatedComments) => {
+      setComments(updatedComments);
+      setCommentCount(updatedComments.length);
+    });
+
+    return () => unsubscribe();
+  }, [isOpen, post?.id, type]);
+
+  // 提交新評論
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!user || !newComment.trim() || commentLoading) return;
+
+    setCommentLoading(true);
+    setError('');
+
+    try {
+      const result = await addComment(post.id, user.uid, newComment);
+      if (result.success) {
+        setNewComment('');
+        setSuccess('評論新增成功');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(result.message);
+      }
+    } catch (error) {
+      console.error('提交評論失敗:', error);
+      setError('提交評論失敗，請稍後再試');
+    } finally {
+      setCommentLoading(false);
+    }
+  };
 
   // 照片預覽導航功能
   const goToPreviousPhoto = () => {
@@ -263,6 +308,148 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
     );
   };
 
+  // 渲染評論區域
+  const renderComments = () => {
+    if (type !== 'couch' && type !== 'local') {
+      return null;
+    }
+
+    const latestComment = comments[comments.length - 1];
+
+    return (
+      <div className="mt-6 border-t border-gray-200 pt-6">
+        {/* 評論標題和統計 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-2 sm:space-y-0">
+          <div className="flex items-center space-x-2">
+            <MessageCircle className="w-5 h-5 text-gray-600 flex-shrink-0" />
+            <h3 className="text-lg font-semibold">留言</h3>
+            {commentCount > 0 && (
+              <span className="text-sm text-gray-500">💬 {commentCount} 則留言</span>
+            )}
+          </div>
+          {commentCount > 0 && (
+            <button
+              onClick={() => setCommentsExpanded(!commentsExpanded)}
+              className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm self-start sm:self-auto"
+            >
+              <span>{commentsExpanded ? '收起留言' : '展開留言'}</span>
+              {commentsExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* 最新評論預覽 */}
+        {!commentsExpanded && latestComment && (
+          <div className="bg-gray-50 rounded-lg p-3 mb-4">
+            <div className="flex items-start space-x-3">
+              {latestComment.userAvatar ? (
+                <img 
+                  src={latestComment.userAvatar} 
+                  alt="avatar" 
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0" 
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Users className="w-4 h-4 text-gray-500" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className="font-medium text-sm text-gray-900 truncate">{latestComment.userName}</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">
+                    {new Date(latestComment.createdAt.seconds * 1000).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 overflow-hidden" style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical'
+                }}>{latestComment.content}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 展開的評論列表 */}
+        {commentsExpanded && (
+          <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
+            {comments.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">目前還沒有留言，快來發表第一則吧！</p>
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                  <div className="flex items-start space-x-3">
+                    {comment.userAvatar ? (
+                      <img 
+                        src={comment.userAvatar} 
+                        alt="avatar" 
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0" 
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Users className="w-4 h-4 text-gray-500" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
+                        <span className="font-medium text-sm text-gray-900 truncate">{comment.userName}</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">
+                          {new Date(comment.createdAt.seconds * 1000).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{comment.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 新增評論表單 */}
+        {user && (
+          <form onSubmit={handleSubmitComment} className="space-y-3">
+            <div>
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="分享你的想法..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                rows={3}
+                maxLength={500}
+                disabled={commentLoading}
+              />
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-2 space-y-2 sm:space-y-0">
+                <span className="text-xs text-gray-500">{newComment.length}/500</span>
+                <button
+                  type="submit"
+                  disabled={!newComment.trim() || commentLoading}
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {commentLoading ? '發送中...' : '發送'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* 未登入提示 */}
+        {!user && (
+          <div className="text-center py-4 text-gray-500 text-sm">
+            請先登入才能發表留言
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // 開啟聊天室邏輯
   const handleOpenChatroom = async () => {
     if (!user) {
@@ -385,6 +572,7 @@ const PostDetailDrawer = ({ isOpen, onClose, post, type }) => {
               <div className="px-4 py-6 sm:px-6">
                 {renderPostContent()}
                 {renderUserProfile()}
+                {renderComments()}
               </div>
             </div>
 
