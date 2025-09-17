@@ -3,8 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { profilesCollection } from '../../firebase';
 import { getDoc, doc } from 'firebase/firestore';
-import { User, Mail, Globe, Camera, X } from 'lucide-react';
+import { User, Mail, Globe, Camera, X, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { 
+  addUserReview, 
+  subscribeToUserReviews, 
+  getUserReviewStats, 
+  hasUserReviewed 
+} from '../../utils/reviewUtils';
 
 export default function PublicProfile() {
   const { user } = useAuth();
@@ -13,6 +19,14 @@ export default function PublicProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [previewState, setPreviewState] = useState({ photos: [], currentIndex: 0, isOpen: false });
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({ totalReviews: 0 });
+  const [reviewsExpanded, setReviewsExpanded] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [newReview, setNewReview] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,6 +40,69 @@ export default function PublicProfile() {
     };
     fetchUserData();
   }, [userId]);
+
+  // 監聽評價更新
+  useEffect(() => {
+    if (!userId) return;
+
+    const unsubscribe = subscribeToUserReviews(userId, (updatedReviews) => {
+      setReviews(updatedReviews);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  // 獲取評價統計
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchReviewStats = async () => {
+      const stats = await getUserReviewStats(userId);
+      setReviewStats(stats);
+    };
+
+    fetchReviewStats();
+  }, [userId, reviews]);
+
+  // 檢查當前用戶是否已評價
+  useEffect(() => {
+    if (!user || !userId || user.uid === userId) return;
+
+    const checkReviewStatus = async () => {
+      const reviewed = await hasUserReviewed(userId, user.uid);
+      setHasReviewed(reviewed);
+    };
+
+    checkReviewStatus();
+  }, [user, userId]);
+
+  // 提交新評價
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!user || !newReview.trim() || reviewLoading) return;
+
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewSuccess('');
+
+    try {
+      const result = await addUserReview(userId, user.uid, newReview);
+      if (result.success) {
+        setNewReview('');
+        setReviewSuccess('評價新增成功');
+        setHasReviewed(true);
+        setTimeout(() => setReviewSuccess(''), 3000);
+      } else {
+        setReviewError(result.message);
+      }
+    } catch (error) {
+      console.error('提交評價失敗:', error);
+      setReviewError('提交評價失敗，請稍後再試');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
 
   // 照片預覽導航功能
   const goToPreviousPhoto = () => {
@@ -75,6 +152,164 @@ export default function PublicProfile() {
       document.body.style.overflow = 'unset';
     };
   }, [previewState.isOpen]);
+
+  // 渲染評價區塊
+  const renderReviews = () => {
+    const latestReview = reviews[0]; // 最新的評價
+
+    return (
+      <div className="mt-6 border-t border-gray-200 pt-6">
+        {/* 評價標題和統計 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-2 sm:space-y-0">
+          <div className="flex items-center space-x-2">
+            <MessageCircle className="w-5 h-5 text-gray-600 flex-shrink-0" />
+            <h3 className="text-lg font-semibold">此用戶的評價</h3>
+            {reviewStats.totalReviews > 0 && (
+              <span className="text-sm text-gray-500">💬 {reviewStats.totalReviews} 則評價</span>
+            )}
+          </div>
+          {reviewStats.totalReviews > 0 && (
+            <button
+              onClick={() => setReviewsExpanded(!reviewsExpanded)}
+              className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 text-sm self-start sm:self-auto"
+            >
+              <span>{reviewsExpanded ? '收起評價' : '展開評價'}</span>
+              {reviewsExpanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* 最新評價預覽 */}
+        {!reviewsExpanded && latestReview && (
+          <div className="bg-gray-50 rounded-lg p-3 mb-4">
+            <div className="flex items-start space-x-3">
+              {latestReview.reviewerAvatar ? (
+                <img 
+                  src={latestReview.reviewerAvatar} 
+                  alt="avatar" 
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0" 
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 text-gray-500" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2 mb-1">
+                  <span className="font-medium text-sm text-gray-900 truncate">{latestReview.reviewerName}</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">
+                    {new Date(latestReview.createdAt.seconds * 1000).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 overflow-hidden" style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical'
+                }}>{latestReview.content}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 展開的評價列表 */}
+        {reviewsExpanded && (
+          <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
+            {reviews.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">目前還沒有評價，快來發表第一則吧！</p>
+              </div>
+            ) : (
+              reviews.map((review) => (
+                <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                  <div className="flex items-start space-x-3">
+                    {review.reviewerAvatar ? (
+                      <img 
+                        src={review.reviewerAvatar} 
+                        alt="avatar" 
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0" 
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-gray-500" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
+                        <span className="font-medium text-sm text-gray-900 truncate">{review.reviewerName}</span>
+                        <span className="text-xs text-gray-500 flex-shrink-0">
+                          {new Date(review.createdAt.seconds * 1000).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{review.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 新增評價表單 */}
+        {user && user.uid !== userId && !hasReviewed && (
+          <form onSubmit={handleSubmitReview} className="space-y-3">
+            <div>
+              <textarea
+                value={newReview}
+                onChange={(e) => setNewReview(e.target.value)}
+                placeholder="分享你對這位用戶的評價..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                rows={3}
+                maxLength={500}
+                disabled={reviewLoading}
+              />
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-2 space-y-2 sm:space-y-0">
+                <span className="text-xs text-gray-500">{newReview.length}/500</span>
+                <button
+                  type="submit"
+                  disabled={!newReview.trim() || reviewLoading}
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {reviewLoading ? '發送中...' : '發送'}
+                </button>
+              </div>
+            </div>
+            {reviewError && (
+              <div className="text-red-500 text-sm">{reviewError}</div>
+            )}
+            {reviewSuccess && (
+              <div className="text-green-600 text-sm">{reviewSuccess}</div>
+            )}
+          </form>
+        )}
+
+        {/* 已評價提示 */}
+        {user && user.uid !== userId && hasReviewed && (
+          <div className="text-center py-4 text-gray-500 text-sm">
+            你已經為這位用戶評價過了
+          </div>
+        )}
+
+        {/* 未登入提示 */}
+        {!user && (
+          <div className="text-center py-4 text-gray-500 text-sm">
+            請先登入才能發表評價
+          </div>
+        )}
+
+        {/* 自己評價自己提示 */}
+        {user && user.uid === userId && (
+          <div className="text-center py-4 text-gray-500 text-sm">
+            無法評價自己
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -151,6 +386,9 @@ export default function PublicProfile() {
             )}
           </div>
         </div>
+        
+        {/* 評價區塊 */}
+        {renderReviews()}
       </div>
       
       {/* 照片預覽 Lightbox */}

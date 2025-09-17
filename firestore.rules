@@ -102,5 +102,22 @@ service cloud.firestore {
       // 刪除：不允許刪除評論
       allow delete: if false;
     }
+    
+    // 用戶評價集合
+    match /userReviews/{reviewId} {
+      // 讀取：所有人可以讀取評價
+      allow read: if true;
+      
+      // 創建：只有登入用戶可以創建評價，且不能評價自己
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.reviewerId &&
+        request.auth.uid != request.resource.data.targetUserId;
+      
+      // 更新：不允許更新評價
+      allow update: if false;
+      
+      // 刪除：不允許刪除評價
+      allow delete: if false;
+    }
   }
 } 
