@@ -9,26 +9,29 @@ echo "================================"
 # 檢查當前目錄是否有敏感資訊
 echo "📋 檢查當前目錄中的敏感資訊..."
 
+# 定義排除檔案列表
+EXCLUDE_FILES="--exclude=security-check.sh --exclude=safe-deploy.sh --exclude=DEPLOYMENT_CHECKLIST.md --exclude=ENV_SETUP_GUIDE.md --exclude=SECURITY_SUMMARY.md"
+
 # 檢查 Gmail Client ID
-if grep -r "658893138453" . --exclude-dir=node_modules --exclude-dir=.git --exclude="security-check.sh" --exclude="safe-deploy.sh" --exclude="DEPLOYMENT_CHECKLIST.md" > /dev/null 2>&1; then
+if grep -r "658893138453" . --exclude-dir=node_modules --exclude-dir=.git $EXCLUDE_FILES > /dev/null 2>&1; then
     echo "❌ 發現 Gmail Client ID 在檔案中"
-    grep -r "658893138453" . --exclude-dir=node_modules --exclude-dir=.git --exclude="security-check.sh" --exclude="safe-deploy.sh" --exclude="DEPLOYMENT_CHECKLIST.md"
+    grep -r "658893138453" . --exclude-dir=node_modules --exclude-dir=.git $EXCLUDE_FILES
 else
     echo "✅ 未發現 Gmail Client ID 在檔案中"
 fi
 
 # 檢查 Gmail Client Secret
-if grep -r "GOCSPX-" . --exclude-dir=node_modules --exclude-dir=.git --exclude="security-check.sh" --exclude="safe-deploy.sh" --exclude="DEPLOYMENT_CHECKLIST.md" > /dev/null 2>&1; then
+if grep -r "GOCSPX-" . --exclude-dir=node_modules --exclude-dir=.git $EXCLUDE_FILES > /dev/null 2>&1; then
     echo "❌ 發現 Gmail Client Secret 在檔案中"
-    grep -r "GOCSPX-" . --exclude-dir=node_modules --exclude-dir=.git --exclude="security-check.sh" --exclude="safe-deploy.sh" --exclude="DEPLOYMENT_CHECKLIST.md"
+    grep -r "GOCSPX-" . --exclude-dir=node_modules --exclude-dir=.git $EXCLUDE_FILES
 else
     echo "✅ 未發現 Gmail Client Secret 在檔案中"
 fi
 
 # 檢查 Refresh Token 模式
-if grep -r "1//" . --exclude-dir=node_modules --exclude-dir=.git --exclude="security-check.sh" --exclude="safe-deploy.sh" --exclude="DEPLOYMENT_CHECKLIST.md" > /dev/null 2>&1; then
+if grep -r "1//" . --exclude-dir=node_modules --exclude-dir=.git $EXCLUDE_FILES > /dev/null 2>&1; then
     echo "⚠️  發現可能的 Refresh Token 模式在檔案中"
-    grep -r "1//" . --exclude-dir=node_modules --exclude-dir=.git --exclude="security-check.sh" --exclude="safe-deploy.sh" --exclude="DEPLOYMENT_CHECKLIST.md"
+    grep -r "1//" . --exclude-dir=node_modules --exclude-dir=.git $EXCLUDE_FILES
 else
     echo "✅ 未發現 Refresh Token 模式在檔案中"
 fi
