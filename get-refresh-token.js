@@ -3,8 +3,8 @@ import express from "express";
 import open from "open";
 import { google } from "googleapis";
 
-const CLIENT_ID = "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
-const CLIENT_SECRET = "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";
+const CLIENT_ID = process.env.GMAIL_CLIENT_ID || "YOUR_CLIENT_ID_HERE";
+const CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || "YOUR_CLIENT_SECRET_HERE";
 const REDIRECT_URI = "http://localhost:3000/oauth2callback";
 
 const oAuth2Client = new google.auth.OAuth2(

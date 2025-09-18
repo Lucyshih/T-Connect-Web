@@ -64,6 +64,16 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 敏感配置檔案
+config/secrets.json
+firebase-config.json
+*-config.json
+secrets/
 
 # dataconnect generated files
 .dataconnect

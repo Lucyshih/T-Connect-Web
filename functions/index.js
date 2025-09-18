@@ -16,6 +16,7 @@ const {getAuth} = require("firebase-admin/auth");
 const {google} = require("googleapis");
 const nodemailer = require("nodemailer");
 const logger = require("firebase-functions/logger");
+const functions = require("firebase-functions");
 
 // 初始化 Firebase Admin
 initializeApp();
@@ -805,13 +806,14 @@ exports.sendChatNotification = onDocumentCreated({
  */
 async function sendSystemEmail(to, userName) {
   try {
-    const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
-    const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
-    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+    const clientId = functions.config().gmail?.client_id || process.env.GMAIL_CLIENT_ID;
+    const clientSecret = functions.config().gmail?.client_secret || process.env.GMAIL_CLIENT_SECRET;
+    const refreshToken = functions.config().gmail?.refresh_token || process.env.GMAIL_REFRESH_TOKEN;
+    
+    const fromEmail = functions.config().gmail?.email || process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
 
     if (!clientId || !clientSecret || !refreshToken) {
-      throw new Error("Gmail configuration missing. Please set environment variables.");
+      throw new Error("Gmail configuration missing. Please set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN environment variables.");
     }
 
     const OAuth2 = google.auth.OAuth2;
@@ -979,9 +981,13 @@ let tokenExpiryTime = null;
 // 初始化 OAuth2 客戶端
 function initializeOAuth2Client() {
   if (!oauth2Client) {
-    const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
-    const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
+    const clientId = functions.config().gmail?.client_id || process.env.GMAIL_CLIENT_ID;
+    const clientSecret = functions.config().gmail?.client_secret || process.env.GMAIL_CLIENT_SECRET;
+    const refreshToken = functions.config().gmail?.refresh_token || process.env.GMAIL_REFRESH_TOKEN;
+    
+    if (!clientId || !clientSecret || !refreshToken) {
+      throw new Error("Gmail OAuth2 configuration missing. Please set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN environment variables.");
+    }
     
     oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -1023,16 +1029,20 @@ async function getValidAccessToken() {
  */
 async function sendEmail(to, senderName, messageContent) {
   try {
-    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+    const fromEmail = functions.config().gmail?.email || process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
 
     if (!fromEmail) {
       throw new Error("Gmail email configuration missing.");
     }
 
     const accessToken = await getValidAccessToken();
-    const clientId = process.env.GMAIL_CLIENT_ID || "658893138453-f5tid88k6dhatull8ae7br5u46agvkk1.apps.googleusercontent.com";
-    const clientSecret = process.env.GMAIL_CLIENT_SECRET || "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";
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN || "1//0ex9rqa1IHKzYCgYIARAAGA4SNwF-L9IrDU0ZREYxZzedmjTciyToHT-cxrUqGCUK6gKOoCQtE8W8F30EEUuYF1N0aZcgOp3i87E";
+    const clientId = functions.config().gmail?.client_id || process.env.GMAIL_CLIENT_ID;
+    const clientSecret = functions.config().gmail?.client_secret || process.env.GMAIL_CLIENT_SECRET;
+    const refreshToken = functions.config().gmail?.refresh_token || process.env.GMAIL_REFRESH_TOKEN;
+    
+    if (!clientId || !clientSecret || !refreshToken) {
+      throw new Error("Gmail configuration missing. Please set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN environment variables.");
+    }
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
