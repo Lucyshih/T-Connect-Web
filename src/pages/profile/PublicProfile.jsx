@@ -4,7 +4,7 @@ import Navbar from '../../components/Navbar';
 import { profilesCollection } from '../../firebase';
 import { getDoc, doc } from 'firebase/firestore';
 import { User, Mail, Globe, Camera, X, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   addUserReview, 
   subscribeToUserReviews, 

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Compass, Mail, Lock, User, X } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -13,7 +13,8 @@ const Signup = () => {
     displayName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    agreedToTerms: false
   });
 
   const handleSubmit = async (e) => {
@@ -21,6 +22,10 @@ const Signup = () => {
     
     if (formData.password !== formData.confirmPassword) {
       return setError('密碼不一致');
+    }
+
+    if (!formData.agreedToTerms) {
+      return setError('請先同意使用者條款與隱私政策');
     }
 
     try {
@@ -132,6 +137,32 @@ const Signup = () => {
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData(prev => ({...prev, confirmPassword: e.target.value}))}
                 />
+              </div>
+            </div>
+
+            {/* 使用條款同意 */}
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  id="agreedToTerms"
+                  type="checkbox"
+                  checked={formData.agreedToTerms}
+                  onChange={(e) => setFormData(prev => ({...prev, agreedToTerms: e.target.checked}))}
+                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="agreedToTerms" className="text-gray-700">
+                  我已閱讀並同意
+                  <a 
+                    href="/terms?view=true" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-500 underline ml-1"
+                  >
+                    《使用者條款與隱私政策》
+                  </a>
+                </label>
               </div>
             </div>
 

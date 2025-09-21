@@ -7,6 +7,7 @@ import LocalRegistration from './pages/local/LocalRegistration.jsx';
 import Profile from './pages/profile/Profile.jsx';
 import Login from './pages/auth/Login.jsx';
 import Signup from './pages/auth/Signup.jsx';
+import Terms from './pages/Terms.jsx';
 import PrivateRoute from './components/PrivateRoute.jsx';
 import Chatroom from './pages/chatroom/Chatroom.jsx';
 import ChatroomList from './pages/chatroom/ChatroomList.jsx';
@@ -35,9 +36,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<ExchangePlatform />} />
+        <Route 
+          path="/" 
+          element={<ExchangePlatform />} 
+        />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Terms />} />
         <Route path="/feedback" element={<Feedback />} />
         {/* 保護頁面：只有登入用戶才能進入 */}
         <Route

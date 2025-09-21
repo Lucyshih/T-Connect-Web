@@ -59,19 +59,27 @@ exports.cleanupExpiredPosts = onSchedule({
         let snapshot;
         
         if (collection.name === "couches") {
-          // 沙發貼文：檢查 selectedRanges 中的最後一個 end 日期
+          // 沙發貼文：檢查 selectedRanges 中所有區間的最晚結束日期
           const allDocs = await db.collection(collection.name).get();
           const expiredDocs = [];
           
           allDocs.forEach(doc => {
             const post = doc.data();
             if (post.selectedRanges && Array.isArray(post.selectedRanges) && post.selectedRanges.length > 0) {
-              const lastRange = post.selectedRanges[post.selectedRanges.length - 1];
-              if (lastRange && lastRange.end) {
-                const endDate = lastRange.end.toDate();
-                if (endDate < europeTime) {
-                  expiredDocs.push(doc);
+              // 找到所有區間中最晚的結束日期
+              let latestEndDate = null;
+              post.selectedRanges.forEach(range => {
+                if (range && range.end) {
+                  const endDate = range.end.toDate();
+                  if (!latestEndDate || endDate > latestEndDate) {
+                    latestEndDate = endDate;
+                  }
                 }
+              });
+              
+              // 如果最晚的結束日期已過期，則標記為過期
+              if (latestEndDate && latestEndDate < europeTime) {
+                expiredDocs.push(doc);
               }
             }
           });
@@ -476,7 +484,9 @@ exports.createBasicProfiles = onRequest(async (request, response) => {
  * 一次性系統通知函數
  * 向所有用戶發送聊天通知功能恢復的郵件
  */
-exports.sendSystemNotification = onRequest(async (request, response) => {
+exports.sendSystemNotification = onRequest({
+  secrets: ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_EMAIL"]
+}, async (request, response) => {
   try {
     // 檢查是否為 POST 請求
     if (request.method !== "POST") {
@@ -650,7 +660,8 @@ exports.sendChatNotification = onDocumentCreated({
   memory: "256MiB",
   timeoutSeconds: 60,
   minInstances: 0,
-  maxInstances: 10
+  maxInstances: 10,
+  secrets: ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_EMAIL"]
 }, async (event) => {
     const snap = event.data;
     if (!snap) {
@@ -806,11 +817,11 @@ exports.sendChatNotification = onDocumentCreated({
  */
 async function sendSystemEmail(to, userName) {
   try {
-    const clientId = functions.config().gmail?.client_id || process.env.GMAIL_CLIENT_ID;
-    const clientSecret = functions.config().gmail?.client_secret || process.env.GMAIL_CLIENT_SECRET;
-    const refreshToken = functions.config().gmail?.refresh_token || process.env.GMAIL_REFRESH_TOKEN;
+    const clientId = process.env.GMAIL_CLIENT_ID;
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
     
-    const fromEmail = functions.config().gmail?.email || process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
 
     if (!clientId || !clientSecret || !refreshToken) {
       throw new Error("Gmail configuration missing. Please set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN environment variables.");
@@ -981,9 +992,9 @@ let tokenExpiryTime = null;
 // 初始化 OAuth2 客戶端
 function initializeOAuth2Client() {
   if (!oauth2Client) {
-    const clientId = functions.config().gmail?.client_id || process.env.GMAIL_CLIENT_ID;
-    const clientSecret = functions.config().gmail?.client_secret || process.env.GMAIL_CLIENT_SECRET;
-    const refreshToken = functions.config().gmail?.refresh_token || process.env.GMAIL_REFRESH_TOKEN;
+    const clientId = process.env.GMAIL_CLIENT_ID;
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
     
     if (!clientId || !clientSecret || !refreshToken) {
       throw new Error("Gmail OAuth2 configuration missing. Please set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN environment variables.");
@@ -1029,16 +1040,16 @@ async function getValidAccessToken() {
  */
 async function sendEmail(to, senderName, messageContent) {
   try {
-    const fromEmail = functions.config().gmail?.email || process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
+    const fromEmail = process.env.GMAIL_EMAIL || "tconnectweb@gmail.com";
 
     if (!fromEmail) {
       throw new Error("Gmail email configuration missing.");
     }
 
     const accessToken = await getValidAccessToken();
-    const clientId = functions.config().gmail?.client_id || process.env.GMAIL_CLIENT_ID;
-    const clientSecret = functions.config().gmail?.client_secret || process.env.GMAIL_CLIENT_SECRET;
-    const refreshToken = functions.config().gmail?.refresh_token || process.env.GMAIL_REFRESH_TOKEN;
+    const clientId = process.env.GMAIL_CLIENT_ID;
+    const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
     
     if (!clientId || !clientSecret || !refreshToken) {
       throw new Error("Gmail configuration missing. Please set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN environment variables.");

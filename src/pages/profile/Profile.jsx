@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import { couchesCollection, companionsCollection, localsCollection, profilesCollection, storage, db, chatroomsCollection } from '../../firebase';

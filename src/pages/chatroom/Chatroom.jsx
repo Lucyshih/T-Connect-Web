@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import Navbar from '../../components/Navbar';
 import { chatroomsCollection, serverTimestamp, companionsCollection, couchesCollection, localsCollection } from '../../firebase';
 import { doc, collection, addDoc, onSnapshot, query, orderBy, getDoc, updateDoc } from 'firebase/firestore';

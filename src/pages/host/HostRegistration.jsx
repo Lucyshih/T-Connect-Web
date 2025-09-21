@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import Navbar from '../../components/Navbar';
 import { couchesCollection } from '../../firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -100,11 +100,19 @@ const DateRangeSelector = ({ selectedRanges, setSelectedRanges }) => {
       setIsSelecting(true);
     } else {
       // 完成選擇
+      let newRange;
       if (date >= currentSelection.start) {
-        setSelectedRanges(prev => [...prev, { start: currentSelection.start, end: date }]);
+        newRange = { start: currentSelection.start, end: date };
       } else {
-        setSelectedRanges(prev => [...prev, { start: date, end: currentSelection.start }]);
+        newRange = { start: date, end: currentSelection.start };
       }
+      
+      // 添加新區間並按開始日期排序
+      setSelectedRanges(prev => {
+        const updatedRanges = [...prev, newRange];
+        return updatedRanges.sort((a, b) => a.start.getTime() - b.start.getTime());
+      });
+      
       setCurrentSelection({ start: null, end: null });
       setIsSelecting(false);
     }

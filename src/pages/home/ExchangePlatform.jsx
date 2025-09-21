@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
-import { MapPin, Users, Calendar, Home, Compass, UserCheck, MessageCircle } from 'lucide-react';
+import { MapPin, Users, Calendar, Home, Compass, UserCheck, MessageCircle, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import SearchBar from '../../components/SearchBar';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import Navbar from '../../components/Navbar';
 import { couchesCollection, companionsCollection, localsCollection } from '../../firebase';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import L from 'leaflet';
 import { Icon } from 'leaflet';
 import PostDetailDrawer from '../../components/PostDetailDrawer';
@@ -89,8 +89,9 @@ const createUnifiedClusterIcon = (count) => {
 
 export default function ExchangePlatform() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, termsAgreed, termsChecked, checkTermsAgreement } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [termsLoading, setTermsLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [couches, setCouches] = useState([]);
   const [companions, setCompanions] = useState([]);
@@ -474,6 +475,74 @@ export default function ExchangePlatform() {
     // 確保 selectedType 保持為 'all'
     setSelectedType('all');
   };
+
+  // 處理用戶同意條款
+  const handleAgreeToTerms = async () => {
+    if (!user) return;
+
+    try {
+      setTermsLoading(true);
+      
+      // 更新 profiles 集合
+      await setDoc(doc(collection(couchesCollection.firestore, 'profiles'), user.uid), {
+        agreedToTerms: true,
+        agreedAt: serverTimestamp()
+      }, { merge: true });
+
+      // 更新 users 集合
+      await setDoc(doc(collection(couchesCollection.firestore, 'users'), user.uid), {
+        agreedToTerms: true,
+        agreedAt: serverTimestamp()
+      }, { merge: true });
+
+      // 重新檢查條款狀態以更新 AuthContext
+      await checkTermsAgreement(user.uid);
+      
+      console.log('✅ 用戶已同意使用條款');
+    } catch (error) {
+      console.error('❌ 更新條款同意狀態失敗:', error);
+    } finally {
+      setTermsLoading(false);
+    }
+  };
+
+  // 條款同意檢查邏輯
+  if (user && termsChecked && termsAgreed === false) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <div className="text-center mb-6">
+            <AlertCircle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">需要同意使用條款</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 mb-2">重要提醒</h3>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• 請仔細閱讀使用條款與隱私政策內容</li>
+                <li>• 了解平台的使用規則與資料處理方式</li>
+                <li>• 確認您同意相關條款後再繼續使用</li>
+              </ul>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <button
+                  onClick={() => navigate('/terms')}
+                  className="bg-blue-600 text-white py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
+                >
+                  <span>📋</span>
+                  <span>查看使用條款與隱私政策</span>
+                </button>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-screen">

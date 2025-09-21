@@ -16,7 +16,7 @@ import {
 const AuthContext = createContext();
 
 // 提供一個 hook 方便取得 Auth Context 的內容
-export function useAuth() {
+function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -29,12 +29,61 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [termsAgreed, setTermsAgreed] = useState(null); // 條款同意狀態
+  const [termsChecked, setTermsChecked] = useState(false); // 是否已檢查過條款狀態
+
+  // 檢查條款同意狀態的函數
+  const checkTermsAgreement = async (userId) => {
+    if (!userId) {
+      setTermsAgreed(null);
+      setTermsChecked(true);
+      return;
+    }
+
+    try {
+      const { db, doc, getDoc } = await import('../firebase');
+      
+      // 先檢查 profiles 集合（主要集合）
+      const profileDoc = await getDoc(doc(db, 'profiles', userId));
+      if (profileDoc.exists()) {
+        const profileData = profileDoc.data();
+        setTermsAgreed(profileData.agreedToTerms === true);
+        setTermsChecked(true);
+        return;
+      }
+
+      // 如果 profiles 集合沒有資料，檢查 users 集合
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setTermsAgreed(userData.agreedToTerms === true);
+      } else {
+        // 如果兩個集合都沒有資料，預設為未同意
+        setTermsAgreed(false);
+      }
+    } catch (error) {
+      console.error('檢查條款同意狀態失敗:', error);
+      // 發生錯誤時，預設為未同意
+      setTermsAgreed(false);
+    } finally {
+      setTermsChecked(true);
+    }
+  };
 
   // 監聽用戶登入狀態變化
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, async user => {
       setUser(user);
       setLoading(false);
+      
+      // 如果用戶登入，檢查條款同意狀態
+      if (user) {
+        await checkTermsAgreement(user.uid);
+      } else {
+        // 用戶登出，重置條款狀態
+        setTermsAgreed(null);
+        setTermsChecked(false);
+      }
     });
     return unsubscribe;
   }, []);
@@ -55,8 +104,7 @@ export function AuthProvider({ children }) {
       
       // 自動建立基本個人檔案
       try {
-        const { getFirestore, doc, setDoc, serverTimestamp } = await import('../firebase');
-        const db = getFirestore();
+        const { db, doc, setDoc, serverTimestamp } = await import('../firebase');
         
         const basicProfile = {
           displayName: displayName?.trim() || email.split('@')[0],
@@ -66,10 +114,22 @@ export function AuthProvider({ children }) {
           isBasicProfile: true, // 標記為基本個人檔案
           nationality: '',
           bio: '',
-          photos: []
+          photos: [],
+          agreedToTerms: true, // 註冊時已同意條款
+          agreedAt: serverTimestamp() // 同意時間
         };
         
         await setDoc(doc(db, 'profiles', user.uid), basicProfile);
+        
+        // 同時在 users 集合中建立基本資料
+        const userData = {
+          displayName: displayName?.trim() || email.split('@')[0],
+          email: email,
+          agreedToTerms: true,
+          agreedAt: serverTimestamp()
+        };
+        await setDoc(doc(db, 'users', user.uid), userData);
+        
         console.log('✅ 自動建立基本個人檔案成功');
       } catch (profileError) {
         console.error('❌ 自動建立個人檔案失敗:', profileError);
@@ -100,8 +160,7 @@ export function AuthProvider({ children }) {
       // 檢查是否為新用戶，如果是則建立基本個人檔案
       if (result._tokenResponse?.isNewUser) {
         try {
-          const { getFirestore, doc, setDoc, serverTimestamp } = await import('../firebase');
-          const db = getFirestore();
+          const { db, doc, setDoc, serverTimestamp } = await import('../firebase');
           
           const basicProfile = {
             displayName: result.user.displayName || result.user.email.split('@')[0],
@@ -111,10 +170,22 @@ export function AuthProvider({ children }) {
             isBasicProfile: true, // 標記為基本個人檔案
             nationality: '',
             bio: '',
-            photos: []
+            photos: [],
+            agreedToTerms: true, // Google 登入時已同意條款
+            agreedAt: serverTimestamp() // 同意時間
           };
           
         await setDoc(doc(db, 'profiles', result.user.uid), basicProfile);
+        
+        // 同時在 users 集合中建立基本資料
+        const userData = {
+          displayName: result.user.displayName || result.user.email.split('@')[0],
+          email: result.user.email,
+          agreedToTerms: true,
+          agreedAt: serverTimestamp()
+        };
+        await setDoc(doc(db, 'users', result.user.uid), userData);
+        
         console.log('✅ Google 登入用戶自動建立基本個人檔案成功');
       } catch (profileError) {
         console.error('❌ Google 登入用戶自動建立個人檔案失敗:', profileError);
@@ -123,6 +194,9 @@ export function AuthProvider({ children }) {
         console.error('用戶 Email:', result.user.email);
         console.error('錯誤詳情:', profileError.message);
       }
+      } else {
+        // 現有用戶登入，檢查條款狀態
+        await checkTermsAgreement(result.user.uid);
       }
       
       return result;
@@ -150,7 +224,10 @@ export function AuthProvider({ children }) {
     logout,
     error,
     setError,
-    setUser
+    setUser,
+    termsAgreed,
+    termsChecked,
+    checkTermsAgreement
   };
 
   return (
@@ -161,5 +238,5 @@ export function AuthProvider({ children }) {
   );
 }
 
-// 導出 AuthContext 供其他文件使用
-export { AuthContext };
+// 導出 useAuth hook
+export { useAuth };

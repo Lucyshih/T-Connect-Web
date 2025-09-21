@@ -1,7 +1,7 @@
 // src/firebase.js
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, serverTimestamp, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from "firebase/analytics";
 
@@ -34,4 +34,4 @@ export const chatroomsCollection = collection(db, 'chatrooms');
 export const commentsCollection = collection(db, 'comments');
 export const userReviewsCollection = collection(db, 'userReviews');
 
-export { auth, db, storage, serverTimestamp };
+export { auth, db, storage, serverTimestamp, doc, updateDoc, setDoc, getDoc };

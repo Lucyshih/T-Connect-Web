@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { Compass, MessageCircle, MessageSquare, Menu, X, User, Home, Users, MapPin } from 'lucide-react';
 
 export default function Navbar() {

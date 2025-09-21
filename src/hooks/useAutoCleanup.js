@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { frontendCleanupExpiredPosts } from '../utils/cleanupUtils';
 
 /**

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar, Users, Compass, Euro, RefreshCw, Share2, Copy, Check, MessageCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import { profilesCollection, chatroomsCollection, serverTimestamp } from '../firebase';
 import { getDoc, doc as firestoreDoc, addDoc, updateDoc } from 'firebase/firestore';
 import { smartOpenChatroom } from '../utils/chatUtils';
